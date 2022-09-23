@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Editing;
 using Microsoft.CodeAnalysis.Text;
@@ -24,90 +25,123 @@ namespace ShaderCodeGen
                 .ToArray();
             return $"{leadWord}{string.Join(string.Empty, tailWords)}";
         }
-    }
-
-    [Generator]
-    public class ShaderSourceGenerator : ISourceGenerator
-    {
-        public void Execute(GeneratorExecutionContext context)
-        {
-            var attributeWord = "Attribute";
-
-            var classAttribute = "ShaderPropertiesProvider";
-            var classAttributeLong = classAttribute + attributeWord;
-
-            var methodAttribute = "ShaderProperty";
-            var methodAttributeLong = methodAttribute + attributeWord;
-
-            //find classes with ShaderPropertiesProvider attribute
-            var classes = context.Compilation.SyntaxTrees
-                .SelectMany(x => x.GetRoot().DescendantNodes())
-                .OfType<ClassDeclarationSyntax>()
-                .Where(classDec => classDec.AttributeLists.Any(y =>
-                    y.Attributes.Any(
-                        z => z.Name.ToString() == classAttributeLong || z.Name.ToString() == classAttribute)))
-                .ToList();
-
-            var declarationsBuilder = new StringBuilder();
-            var initializationBuilder = new StringBuilder();
-
-            foreach (var classDeclaration in classes)
-            {
-                var stringFields = classDeclaration.Members.OfType<FieldDeclarationSyntax>().Where(
-                    fieldDec =>
-                    {
-                        var hasAttr = fieldDec.AttributeLists.Any(list => list.Attributes.Any(attr =>
-                            attr.Name.ToString() == methodAttributeLong ||
-                            attr.Name.ToString() == methodAttribute));
-                        var isConst = fieldDec.Modifiers.Any(x => x.Text == "const");
-                        var isStringType = fieldDec.Declaration.Type.ToString() == "string";
-                        return hasAttr && isConst && isStringType;
-                    }
-                );
-
-                //get string fields, and add int declaration for them
-                foreach (var field in stringFields)
-                {
-                    var stringField = field.Declaration.Variables.First().Identifier.Text;
-                    var intField = stringField.ToCamelCase() + "PropertyId";
-                    declarationsBuilder.AppendLine($"public int {intField};");
-
-                    //initialization
-                    initializationBuilder.Append(
-                        @"
-                        " +
-                        $"{intField} = Shader.PropertyToID({stringField});" +
-                        $""
-                    );
-                }
-            }
-        }
         
-        public IEnumerable<FieldDeclarationSyntax> GetConstantsOfTypeByAttribute(
-            ClassDeclarationSyntax classDeclaration,
+        public static IEnumerable<FieldDeclarationSyntax> GetConstantsOfTypeByAttribute(
+            this ClassDeclarationSyntax classDeclaration,
             string attribute,
             string type)
         {
             return classDeclaration.Members.OfType<FieldDeclarationSyntax>().Where(
                 fieldDeclaration =>
                 {
-                    var hasAttr = fieldDeclaration.AttributeLists.Any(list => list.Attributes.Any(attr => attr.Name.ToString() == attribute));
-                    var isConst = fieldDeclaration.Modifiers.Any(x => x.Text == "const");
+                    var hasAttr = fieldDeclaration.HasAttribute(attribute);
+                    var isConst = fieldDeclaration.Modifiers.Any(SyntaxKind.ConstKeyword);
                     var isStringType = fieldDeclaration.Declaration.Type.ToString() == type;
                     return hasAttr && isConst && isStringType;
                 }
             );
         }
 
-        private IEnumerable<ClassDeclarationSyntax> GetClassesByAttribute(Compilation compilation, string attribute)
+        public static IEnumerable<ClassDeclarationSyntax> GetClassesByAttribute(this Compilation compilation, string attribute)
         {
-            var attributeLong = attribute + "Attribute";
             return compilation.SyntaxTrees
                 .SelectMany(x => x.GetRoot().DescendantNodes())
                 .OfType<ClassDeclarationSyntax>()
-                .Where(classDec => classDec.AttributeLists.Any(y =>
-                    y.Attributes.Any(
-                        z => z.Name.ToString() == attributeLong || z.Name.ToString() == attribute)));
+                .Where(classDec => classDec.HasAttribute(attribute));
+        }
+
+        public static bool HasAttribute(this FieldDeclarationSyntax fieldSyntax, string attribute)
+        {
+            return fieldSyntax.AttributeLists.HasAttribute(attribute);
+        }
+        
+        public static bool HasAttribute(this ClassDeclarationSyntax classSyntax, string attribute)
+        {
+            return classSyntax.AttributeLists.HasAttribute(attribute);
+        }
+
+        private static bool HasAttribute(this SyntaxList<AttributeListSyntax> attributeListSyntaxes, string attribute)
+        {
+            var longAttribute = attribute + "Attribute";
+            return attributeListSyntaxes.Any(list =>
+                list.Attributes.Any(attr =>
+                    attr.Name.ToString() == attribute || attr.Name.ToString() == longAttribute));
+        }
+    }
+
+    [Generator]
+    public class ShaderSourceGenerator : ISourceGenerator
+    {
+        private const string ShaderAttribute = "Shader";
+        private const string ShaderPropertiesProviderAttribute = "ShaderPropertiesProvider";
+        private const string ShaderPropertyAttribute = "ShaderProperty";
+
+        private readonly  StringBuilder _declarationsBuilder = new StringBuilder();
+        private readonly StringBuilder _initializationBuilder = new StringBuilder();
+        private readonly StringBuilder _classBuilder = new StringBuilder();
+
+        public void Execute(GeneratorExecutionContext context)
+        {
+            //find classes with ShaderPropertiesProvider attribute
+            var classes = context.Compilation.GetClassesByAttribute(ShaderPropertiesProviderAttribute);
+
+            foreach (var classDeclaration in classes)
+            {
+                _declarationsBuilder.Clear();
+                _initializationBuilder.Clear();
+                _classBuilder.Clear();
+                
+                var shaderPropertyFields = classDeclaration.GetConstantsOfTypeByAttribute(ShaderPropertyAttribute, "string");
+                var shaders = classDeclaration.GetConstantsOfTypeByAttribute(ShaderAttribute, "string");
+                
+                //get shader properties and create in propertyIds for them;
+                foreach (var shaderPropertyField in shaderPropertyFields)
+                {
+                    var stringField = shaderPropertyField.Declaration.Variables.First().Identifier.Text;
+                    var stringFieldValue = shaderPropertyField.Declaration.Variables.First().Identifier.Value;
+                    var intField = stringField.ToCamelCase() + "PropertyId";
+                   
+                    //add declaration and initialization for shaders
+                    _declarationsBuilder.AppendLine($"public readonly int {intField};");
+                    _initializationBuilder.AppendLine($"{intField} = Shader.PropertyToID({stringFieldValue})");
+                }
+                
+                //get shaders and create in shaderIds for them;
+                var shaderCounter = 0;
+                foreach (var shader in shaders)
+                {
+                    var stringField = shader.Declaration.Variables.First().Identifier.Text;
+                    var stringFieldValue = shader.Declaration.Variables.First().Identifier.Value;
+                    var intField = stringField.ToCamelCase() + "ShaderId";
+                    
+                    //add declaration and initialization for shaders
+                    _declarationsBuilder.AppendLine($"public readonly int {intField};");
+                    
+                    var shaderVariable = stringField + shaderCounter++;
+                    _initializationBuilder.AppendLine($"{intField} = Shader.PropertyToID({stringFieldValue});");
+                    _initializationBuilder.AppendLine($"var {shaderVariable} = Shader.Find({stringFieldValue});");
+                    _initializationBuilder.AppendLine($"m_shaders[{intField}] = {shaderVariable};");
+                    _initializationBuilder.AppendLine($"m_materials[{intField}] = new Material({shaderVariable});");
+                }
+
+                //TODO:
+                //get class current namespace:
+                _classBuilder.Append(
+                    $"public partial class {classDeclaration.Identifier.Text}" + 
+                                     @"
+                {
+                " +
+                                     _declarationsBuilder +
+                                     @"
+                    private void Init()
+                    {
+                " + 
+                                     _initializationBuilder +
+                                     @"
+                    }
+                }
+                ");
+            }
         }
 
         public void Initialize(GeneratorInitializationContext context)
