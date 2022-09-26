@@ -1,74 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Text.RegularExpressions;
+﻿using System.Text;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.Editing;
 using Microsoft.CodeAnalysis.Text;
 
 namespace ShaderCodeGen
 {
-    public static class CodeGenHelpers
-    {
-        public static string ToCamelCase(this string str)
-        {
-            var words = str.Split(new[] { "_", " " }, StringSplitOptions.RemoveEmptyEntries);
-            var leadWord = Regex.Replace(words[0], @"([A-Z])([A-Z]+|[a-z0-9]+)($|[A-Z]\w*)",
-                m => m.Groups[1].Value.ToLower() + m.Groups[2].Value.ToLower() + m.Groups[3].Value);
-            var tailWords = words.Skip(1)
-                .Select(word => char.ToUpper(word[0]) + word.Substring(1))
-                .ToArray();
-            return $"{leadWord}{string.Join(string.Empty, tailWords)}";
-        }
-        
-        public static IEnumerable<FieldDeclarationSyntax> GetConstantsOfTypeByAttribute(
-            this ClassDeclarationSyntax classDeclaration,
-            string attribute,
-            string type)
-        {
-            return classDeclaration.Members.OfType<FieldDeclarationSyntax>().Where(
-                fieldDeclaration =>
-                {
-                    var hasAttr = fieldDeclaration.HasAttribute(attribute);
-                    var isConst = fieldDeclaration.Modifiers.Any(SyntaxKind.ConstKeyword);
-                    var isStringType = fieldDeclaration.Declaration.Type.ToString() == type;
-                    return hasAttr && isConst && isStringType;
-                }
-            );
-        }
-
-        public static IEnumerable<ClassDeclarationSyntax> GetClassesByAttribute(this Compilation compilation, string attribute)
-        {
-            return compilation.SyntaxTrees
-                .SelectMany(x => x.GetRoot().DescendantNodes())
-                .OfType<ClassDeclarationSyntax>()
-                .Where(classDec => classDec.HasAttribute(attribute));
-        }
-
-        public static bool HasAttribute(this FieldDeclarationSyntax fieldSyntax, string attribute)
-        {
-            return fieldSyntax.AttributeLists.HasAttribute(attribute);
-        }
-        
-        public static bool HasAttribute(this ClassDeclarationSyntax classSyntax, string attribute)
-        {
-            return classSyntax.AttributeLists.HasAttribute(attribute);
-        }
-
-        private static bool HasAttribute(this SyntaxList<AttributeListSyntax> attributeListSyntaxes, string attribute)
-        {
-            var longAttribute = attribute + "Attribute";
-            return attributeListSyntaxes.Any(list =>
-                list.Attributes.Any(attr =>
-                    attr.Name.ToString() == attribute || attr.Name.ToString() == longAttribute));
-        }
-    }
-
     [Generator]
     public class ShaderSourceGenerator : ISourceGenerator
     {
@@ -76,7 +11,7 @@ namespace ShaderCodeGen
         private const string ShaderPropertiesProviderAttribute = "ShaderPropertiesProvider";
         private const string ShaderPropertyAttribute = "ShaderProperty";
 
-        private readonly  StringBuilder _declarationsBuilder = new StringBuilder();
+        private readonly StringBuilder _declarationsBuilder = new StringBuilder();
         private readonly StringBuilder _initializationBuilder = new StringBuilder();
         private readonly StringBuilder _classBuilder = new StringBuilder();
 
@@ -84,13 +19,14 @@ namespace ShaderCodeGen
         {
             //find classes with ShaderPropertiesProvider attribute
             var classes = context.Compilation.GetClassesByAttribute(ShaderPropertiesProviderAttribute);
+            string namespaceStr = string.Empty;
 
             foreach (var classDeclaration in classes)
             {
+                _classBuilder.Clear();
                 _declarationsBuilder.Clear();
                 _initializationBuilder.Clear();
-                _classBuilder.Clear();
-                
+
                 var shaderPropertyFields = classDeclaration.GetConstantsOfTypeByAttribute(ShaderPropertyAttribute, "string");
                 var shaders = classDeclaration.GetConstantsOfTypeByAttribute(ShaderAttribute, "string");
                 
@@ -102,7 +38,7 @@ namespace ShaderCodeGen
                     var intField = stringField.ToCamelCase() + "PropertyId";
                    
                     //add declaration and initialization for shaders
-                    _declarationsBuilder.AppendLine($"public readonly int {intField};");
+                    _declarationsBuilder.AppendLine($"public int {intField} {{get; private set;}}");
                     _initializationBuilder.AppendLine($"{intField} = Shader.PropertyToID({stringFieldValue})");
                 }
                 
@@ -115,33 +51,48 @@ namespace ShaderCodeGen
                     var intField = stringField.ToCamelCase() + "ShaderId";
                     
                     //add declaration and initialization for shaders
-                    _declarationsBuilder.AppendLine($"public readonly int {intField};");
+                    _declarationsBuilder.AppendLine($"public int {intField} {{get; private set;}}");
                     
                     var shaderVariable = stringField + shaderCounter++;
                     _initializationBuilder.AppendLine($"{intField} = Shader.PropertyToID({stringFieldValue});");
                     _initializationBuilder.AppendLine($"var {shaderVariable} = Shader.Find({stringFieldValue});");
                     _initializationBuilder.AppendLine($"m_shaders[{intField}] = {shaderVariable};");
                     _initializationBuilder.AppendLine($"m_materials[{intField}] = new Material({shaderVariable});");
+                    _initializationBuilder.AppendLine("");
                 }
 
                 //TODO:
                 //get class current namespace:
+                namespaceStr = classDeclaration.GetNamespace();
+
                 _classBuilder.Append(
+                    @"using UnityEngine;"+
+                    $"namespace {namespaceStr}{{" +
                     $"public partial class {classDeclaration.Identifier.Text}" + 
                                      @"
-                {
+                        {
                 " +
                                      _declarationsBuilder +
                                      @"
-                    private void Init()
-                    {
+                        private void Init()
+                        {
                 " + 
                                      _initializationBuilder +
                                      @"
+                        }
                     }
                 }
                 ");
+                context.AddSource(classDeclaration.Identifier.Text + "generated.cs", SourceText.From(_classBuilder.ToString(), Encoding.UTF8));
             }
+
+            StringBuilder codeGenResultTest = new StringBuilder();
+            codeGenResultTest.AppendLine("namespace CodeGenTest{");
+            codeGenResultTest.AppendLine("public static class CodeGenResultTest{");
+            codeGenResultTest.AppendLine($"public static string Result = \"{namespaceStr}\"; }} ");
+            codeGenResultTest.AppendLine("}");
+            
+            context.AddSource("CodeGenResult.cs", SourceText.From(codeGenResultTest.ToString(), Encoding.UTF8));
         }
 
         public void Initialize(GeneratorInitializationContext context)
