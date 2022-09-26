@@ -10,16 +10,32 @@ namespace ShaderCodeGen
 {
     public static class CodeGenHelpers
     {
-        public static string ToCamelCase(this string str)
+        /// <summary>
+        /// Changes the TEST_TEXT_EXAMPLE to TestTextExample
+        /// </summary>
+        /// <param name="str"></param>
+        /// <returns></returns>
+        public static string ConstToCamelCase(this string str)
         {
             var words = str.Split(new[] { "_", " " }, StringSplitOptions.RemoveEmptyEntries);
-            var leadWord = Regex.Replace(words[0], @"([A-Z])([A-Z]+|[a-z0-9]+)($|[A-Z]\w*)",
-                m => m.Groups[1].Value.ToLower() + m.Groups[2].Value.ToLower() + m.Groups[3].Value);
-            var tailWords = words.Skip(1)
-                .Select(word => char.ToUpper(word[0]) + word.Substring(1))
-                .ToArray();
-            return $"{leadWord}{string.Join(string.Empty, tailWords)}";
+            for (int i = 0; i < words.Length; i++)
+            {
+                var word = words[i];
+                words[i] = char.ToUpper(word[0]) + word.Substring(1).ToLower();
+            }
+            return string.Concat(words);
         }
+        
+        // public static string ToCamelCase(this string str)
+        // {
+        //     var words = str.Split(new[] { "_", " " }, StringSplitOptions.RemoveEmptyEntries);
+        //     var leadWord = Regex.Replace(words[0], @"([A-Z])([A-Z]+|[a-z0-9]+)($|[A-Z]\w*)",
+        //         m => m.Groups[1].Value.ToLower() + m.Groups[2].Value.ToLower() + m.Groups[3].Value);
+        //     var tailWords = words.Skip(1)
+        //         .Select(word => char.ToUpper(word[0]) + word.Substring(1))
+        //         .ToArray();
+        //     return $"{leadWord}{string.Join(string.Empty, tailWords)}";
+        // }
         
         public static IEnumerable<FieldDeclarationSyntax> GetConstantsOfTypeByAttribute(
             this ClassDeclarationSyntax classDeclaration,

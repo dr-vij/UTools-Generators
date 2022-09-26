@@ -35,7 +35,7 @@ namespace ShaderCodeGen
                 {
                     var stringField = shaderPropertyField.Declaration.Variables.First().Identifier.Text;
                     var stringFieldValue = shaderPropertyField.Declaration.Variables.First().Identifier.Value;
-                    var intField = stringField.ToCamelCase() + "PropertyId";
+                    var intField = stringField.ConstToCamelCase() + "PropertyId";
                    
                     //add declaration and initialization for shaders
                     _declarationsBuilder.AppendLine($"public int {intField} {{get; private set;}}");
@@ -48,7 +48,7 @@ namespace ShaderCodeGen
                 {
                     var stringField = shader.Declaration.Variables.First().Identifier.Text;
                     var stringFieldValue = shader.Declaration.Variables.First().Identifier.Value;
-                    var intField = stringField.ToCamelCase() + "ShaderId";
+                    var intField = stringField.ConstToCamelCase() + "ShaderId";
                     
                     //add declaration and initialization for shaders
                     _declarationsBuilder.AppendLine($"public int {intField} {{get; private set;}}");
