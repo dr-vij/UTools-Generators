@@ -38,8 +38,8 @@ namespace ShaderCodeGen
                     var intField = stringField.ConstToCamelCase() + "PropertyId";
                    
                     //add declaration and initialization for shaders
-                    _declarationsBuilder.AppendLine($"public int {intField} {{get; private set;}}");
-                    _initializationBuilder.AppendLine($"{intField} = Shader.PropertyToID({stringFieldValue})");
+                    _declarationsBuilder.AppendLine($"public static int {intField} {{get; private set;}}");
+                    _initializationBuilder.AppendLine($"{intField} = Shader.PropertyToID({stringFieldValue});");
                 }
                 
                 //get shaders and create in shaderIds for them;
@@ -51,13 +51,13 @@ namespace ShaderCodeGen
                     var intField = stringField.ConstToCamelCase() + "ShaderId";
                     
                     //add declaration and initialization for shaders
-                    _declarationsBuilder.AppendLine($"public int {intField} {{get; private set;}}");
+                    _declarationsBuilder.AppendLine($"public static int {intField} {{get; private set;}}");
                     
                     var shaderVariable = stringField + shaderCounter++;
                     _initializationBuilder.AppendLine($"{intField} = Shader.PropertyToID({stringFieldValue});");
                     _initializationBuilder.AppendLine($"var {shaderVariable} = Shader.Find({stringFieldValue});");
-                    _initializationBuilder.AppendLine($"m_shaders[{intField}] = {shaderVariable};");
-                    _initializationBuilder.AppendLine($"m_materials[{intField}] = new Material({shaderVariable});");
+                    _initializationBuilder.AppendLine($"Shaders[{intField}] = {shaderVariable};");
+                    _initializationBuilder.AppendLine($"Materials[{intField}] = new Material({shaderVariable});");
                     _initializationBuilder.AppendLine("");
                 }
 
@@ -65,25 +65,38 @@ namespace ShaderCodeGen
                 //get class current namespace:
                 namespaceStr = classDeclaration.GetNamespace();
 
+                //CODE OF GENERATED CLASS                    
                 _classBuilder.Append(
-                    @"using UnityEngine;"+
-                    $"namespace {namespaceStr}{{" +
-                    $"public partial class {classDeclaration.Identifier.Text}" + 
-                                     @"
-                        {
-                " +
-                                     _declarationsBuilder +
-                                     @"
-                        private void Init()
-                        {
-                " + 
-                                     _initializationBuilder +
-                                     @"
-                        }
-                    }
-                }
-                ");
-                context.AddSource(classDeclaration.Identifier.Text + "generated.cs", SourceText.From(_classBuilder.ToString(), Encoding.UTF8));
+                    $@"
+using UnityEngine;
+using System.Collections.Generic;
+
+namespace {namespaceStr}
+{{
+    public static partial class {classDeclaration.Identifier.Text} 
+    {{ 
+        {_declarationsBuilder} 
+
+        private static readonly Dictionary<int, Shader> Shaders = new();
+        private static readonly Dictionary<int, Material> Materials = new();
+        
+        static MaterialProvider()
+        {{
+            Init();
+        }}
+
+        private static void Init() 
+        {{ 
+            {_initializationBuilder} 
+        }}
+
+        public static Shader GetShader(int shader) => Shaders[shader];
+
+        public static Material GetMaterial(int shader) => Materials[shader];
+    }}
+}}");
+                //END OF CODE OF GENERATED CLASS
+                context.AddSource(classDeclaration.Identifier.Text + "Generated.cs", SourceText.From(_classBuilder.ToString(), Encoding.UTF8));
             }
 
             StringBuilder codeGenResultTest = new StringBuilder();
@@ -92,7 +105,7 @@ namespace ShaderCodeGen
             codeGenResultTest.AppendLine($"public static string Result = \"{namespaceStr}\"; }} ");
             codeGenResultTest.AppendLine("}");
             
-            context.AddSource("CodeGenResult.cs", SourceText.From(codeGenResultTest.ToString(), Encoding.UTF8));
+            context.AddSource("CodeGenTest.cs", SourceText.From(codeGenResultTest.ToString(), Encoding.UTF8));
         }
 
         public void Initialize(GeneratorInitializationContext context)
