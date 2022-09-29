@@ -7,6 +7,9 @@ namespace ShaderCodeGen
     [Generator]
     public class ShaderSourceGenerator : ISourceGenerator
     {
+        const string TripleTab = "\t\t\t";
+        const string DoubleTab = "\t\t";
+        
         private const string ShaderAttribute = "Shader";
         private const string ShaderPropertiesProviderAttribute = "ShaderPropertiesProvider";
         private const string ShaderPropertyAttribute = "ShaderProperty";
@@ -19,7 +22,6 @@ namespace ShaderCodeGen
         {
             //find classes with ShaderPropertiesProvider attribute
             var classes = context.Compilation.GetClassesByAttribute(ShaderPropertiesProviderAttribute);
-            string namespaceStr = string.Empty;
 
             foreach (var classDeclaration in classes)
             {
@@ -29,6 +31,7 @@ namespace ShaderCodeGen
 
                 var shaderPropertyFields = classDeclaration.GetConstantsOfTypeByAttribute(ShaderPropertyAttribute, "string");
                 var shaders = classDeclaration.GetConstantsOfTypeByAttribute(ShaderAttribute, "string");
+                var namespaceStr = classDeclaration.GetNamespace();
                 
                 //get shader properties and create in propertyIds for them;
                 foreach (var shaderPropertyField in shaderPropertyFields)
@@ -38,9 +41,12 @@ namespace ShaderCodeGen
                     var intField = stringField.ConstToCamelCase() + "PropertyId";
                    
                     //add declaration and initialization for shaders
-                    _declarationsBuilder.AppendLine($"public static int {intField} {{get; private set;}}");
-                    _initializationBuilder.AppendLine($"{intField} = Shader.PropertyToID({stringFieldValue});");
+                    _declarationsBuilder.AppendLine($"{DoubleTab}public static int {intField} {{get; private set;}}");
+                    
+                    _initializationBuilder.AppendLine($"{TripleTab}{intField} = Shader.PropertyToID({stringFieldValue});");
                 }
+                _declarationsBuilder.AppendLine("");
+                _initializationBuilder.AppendLine("");
                 
                 //get shaders and create in shaderIds for them;
                 var shaderCounter = 0;
@@ -51,19 +57,15 @@ namespace ShaderCodeGen
                     var intField = stringField.ConstToCamelCase() + "ShaderId";
                     
                     //add declaration and initialization for shaders
-                    _declarationsBuilder.AppendLine($"public static int {intField} {{get; private set;}}");
-                    
+                    _declarationsBuilder.AppendLine($"{DoubleTab}public static int {intField} {{get; private set;}}");
                     var shaderVariable = stringField + shaderCounter++;
-                    _initializationBuilder.AppendLine($"{intField} = Shader.PropertyToID({stringFieldValue});");
-                    _initializationBuilder.AppendLine($"var {shaderVariable} = Shader.Find({stringFieldValue});");
-                    _initializationBuilder.AppendLine($"Shaders[{intField}] = {shaderVariable};");
-                    _initializationBuilder.AppendLine($"Materials[{intField}] = new Material({shaderVariable});");
+                    _initializationBuilder.AppendLine($"{TripleTab}{intField} = Shader.PropertyToID({stringFieldValue});");
+                    _initializationBuilder.AppendLine($"{TripleTab}var {shaderVariable} = Shader.Find({stringFieldValue});");
+                    _initializationBuilder.AppendLine($"{TripleTab}Shaders[{intField}] = {shaderVariable};");
+                    _initializationBuilder.AppendLine($"{TripleTab}Materials[{intField}] = new Material({shaderVariable});");
                     _initializationBuilder.AppendLine("");
                 }
 
-                //TODO:
-                //get class current namespace:
-                namespaceStr = classDeclaration.GetNamespace();
 
                 //CODE OF GENERATED CLASS                    
                 _classBuilder.Append(
@@ -75,7 +77,7 @@ namespace {namespaceStr}
 {{
     public static partial class {classDeclaration.Identifier.Text} 
     {{ 
-        {_declarationsBuilder} 
+{_declarationsBuilder} 
 
         private static readonly Dictionary<int, Shader> Shaders = new();
         private static readonly Dictionary<int, Material> Materials = new();
@@ -87,7 +89,7 @@ namespace {namespaceStr}
 
         private static void Init() 
         {{ 
-            {_initializationBuilder} 
+{_initializationBuilder} 
         }}
 
         public static Shader GetShader(int shader) => Shaders[shader];
@@ -100,9 +102,10 @@ namespace {namespaceStr}
             }
 
             StringBuilder codeGenResultTest = new StringBuilder();
+            var test = "";
             codeGenResultTest.AppendLine("namespace CodeGenTest{");
             codeGenResultTest.AppendLine("public static class CodeGenResultTest{");
-            codeGenResultTest.AppendLine($"public static string Result = \"{namespaceStr}\"; }} ");
+            codeGenResultTest.AppendLine($"public static string Result = \"{test}\"; }} ");
             codeGenResultTest.AppendLine("}");
             
             context.AddSource("CodeGenTest.cs", SourceText.From(codeGenResultTest.ToString(), Encoding.UTF8));
