@@ -79,8 +79,8 @@ namespace {namespaceStr}
     {{ 
 {_declarationsBuilder} 
 
-        private static readonly Dictionary<int, Shader> Shaders = new();
-        private static readonly Dictionary<int, Material> Materials = new();
+        private static readonly Dictionary<int, Shader> Shaders = new Dictionary<int, Shader>();
+        private static readonly Dictionary<int, Material> Materials = new Dictionary<int, Material>();
         
         static MaterialProvider()
         {{
