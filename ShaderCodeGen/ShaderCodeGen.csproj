@@ -5,11 +5,11 @@
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
-      <OutputPath>../../UnityProject/Assets/Plugins/ViJApps/CanvasTexture/CodeGen/</OutputPath>
+      <OutputPath>../../UnityProject/Assets/Plugins/ViJApps/CanvasTexture/ShaderSourceGenerator/</OutputPath>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-      <OutputPath>../../UnityProject/Assets/Plugins/ViJApps/CanvasTexture/CodeGen</OutputPath>
+      <OutputPath>../../UnityProject/Assets/Plugins/ViJApps/CanvasTexture/ShaderSourceGenerator/</OutputPath>
     </PropertyGroup>
 
     <ItemGroup>
