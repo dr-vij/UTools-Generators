@@ -9,7 +9,7 @@ namespace ShaderCodeGen
     {
         const string TripleTab = "\t\t\t";
         const string DoubleTab = "\t\t";
-        
+
         private const string ShaderAttribute = "Shader";
         private const string ShaderPropertiesProviderAttribute = "ShaderPropertiesProvider";
         private const string ShaderPropertyAttribute = "ShaderProperty";
@@ -32,22 +32,23 @@ namespace ShaderCodeGen
                 var shaderPropertyFields = classDeclaration.GetConstantsOfTypeByAttribute(ShaderPropertyAttribute, "string");
                 var shaders = classDeclaration.GetConstantsOfTypeByAttribute(ShaderAttribute, "string");
                 var namespaceStr = classDeclaration.GetNamespace();
-                
+
                 //get shader properties and create in propertyIds for them;
                 foreach (var shaderPropertyField in shaderPropertyFields)
                 {
                     var stringField = shaderPropertyField.Declaration.Variables.First().Identifier.Text;
                     var stringFieldValue = shaderPropertyField.Declaration.Variables.First().Identifier.Value;
                     var intField = stringField.ConstToCamelCase() + "PropertyId";
-                   
+
                     //add declaration and initialization for shaders
                     _declarationsBuilder.AppendLine($"{DoubleTab}public static int {intField} {{get; private set;}}");
-                    
+
                     _initializationBuilder.AppendLine($"{TripleTab}{intField} = Shader.PropertyToID({stringFieldValue});");
                 }
+
                 _declarationsBuilder.AppendLine("");
                 _initializationBuilder.AppendLine("");
-                
+
                 //get shaders and create in shaderIds for them;
                 var shaderCounter = 0;
                 foreach (var shader in shaders)
@@ -55,15 +56,13 @@ namespace ShaderCodeGen
                     var stringField = shader.Declaration.Variables.First().Identifier.Text;
                     var stringFieldValue = shader.Declaration.Variables.First().Identifier.Value;
                     var intField = stringField.ConstToCamelCase() + "ShaderId";
-                    
+
                     //add declaration and initialization for shaders
                     _declarationsBuilder.AppendLine($"{DoubleTab}public static int {intField} {{get; private set;}}");
                     var shaderVariable = stringField + shaderCounter++;
                     _initializationBuilder.AppendLine($"{TripleTab}{intField} = Shader.PropertyToID({stringFieldValue});");
-                    _initializationBuilder.AppendLine($"{TripleTab}var op{shaderVariable} = Addressables.LoadAssetAsync<Shader>({stringFieldValue});");
-                    _initializationBuilder.AppendLine($"{TripleTab}var {shaderVariable} = op{shaderVariable}.WaitForCompletion();");
-                    _initializationBuilder.AppendLine($"{TripleTab}Shaders[{intField}] = {shaderVariable};");
-                    _initializationBuilder.AppendLine($"{TripleTab}Materials[{intField}] = new Material({shaderVariable});");
+                    _initializationBuilder.AppendLine($"{TripleTab}shaderTasks.Add(Addressables.LoadAssetAsync<Shader>({stringFieldValue}).Task);");
+                    _initializationBuilder.AppendLine($"{TripleTab}shaderIds.Add({intField});");
                     _initializationBuilder.AppendLine("");
                 }
 
@@ -73,6 +72,7 @@ namespace ShaderCodeGen
 using UnityEngine;
 using System.Collections.Generic;
 using UnityEngine.AddressableAssets;
+using System.Threading.Tasks;
 
 namespace {namespaceStr}
 {{
@@ -82,15 +82,28 @@ namespace {namespaceStr}
 
         private static readonly Dictionary<int, Shader> Shaders = new Dictionary<int, Shader>();
         private static readonly Dictionary<int, Material> Materials = new Dictionary<int, Material>();
+
+        public static Task Initialization {{ get; private set; }}
+
+        public static IsInitializationCompleted => Initialization.IsCompleted;   
         
         static MaterialProvider()
         {{
-            Init();
+            Initialization = Init();
         }}
 
-        private static void Init() 
+        private async static Task Init() 
         {{ 
+            var shaderTasks = new List<Task<Shader>>();
+            var shaderIds = new List<int>();
 {_initializationBuilder} 
+            await Task.WhenAll(shaderTasks);
+
+            for(int i = 0; i < shaderIds.Count; i++)
+            {{
+                Shaders[shaderIds[i]] = shaderTasks[i].Result;
+                Materials[shaderIds[i]] = new Material(shaderTasks[i].Result);
+            }}
         }}
 
         public static Shader GetShader(int shader) => Shaders[shader];
@@ -108,7 +121,7 @@ namespace {namespaceStr}
             codeGenResultTest.AppendLine("public static class CodeGenResultTest{");
             codeGenResultTest.AppendLine($"public static string Result = \"{test}\"; }} ");
             codeGenResultTest.AppendLine("}");
-            
+
             context.AddSource("CodeGenTest.cs", SourceText.From(codeGenResultTest.ToString(), Encoding.UTF8));
         }
 
