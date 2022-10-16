@@ -60,18 +60,19 @@ namespace ShaderCodeGen
                     _declarationsBuilder.AppendLine($"{DoubleTab}public static int {intField} {{get; private set;}}");
                     var shaderVariable = stringField + shaderCounter++;
                     _initializationBuilder.AppendLine($"{TripleTab}{intField} = Shader.PropertyToID({stringFieldValue});");
-                    _initializationBuilder.AppendLine($"{TripleTab}var {shaderVariable} = Shader.Find({stringFieldValue});");
+                    _initializationBuilder.AppendLine($"{TripleTab}var op{shaderVariable} = Addressables.LoadAssetAsync<Shader>({stringFieldValue});");
+                    _initializationBuilder.AppendLine($"{TripleTab}var {shaderVariable} = op{shaderVariable}.WaitForCompletion();");
                     _initializationBuilder.AppendLine($"{TripleTab}Shaders[{intField}] = {shaderVariable};");
                     _initializationBuilder.AppendLine($"{TripleTab}Materials[{intField}] = new Material({shaderVariable});");
                     _initializationBuilder.AppendLine("");
                 }
-
 
                 //CODE OF GENERATED CLASS                    
                 _classBuilder.Append(
                     $@"
 using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine.AddressableAssets;
 
 namespace {namespaceStr}
 {{
