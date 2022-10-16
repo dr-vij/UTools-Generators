@@ -50,7 +50,6 @@ namespace ShaderCodeGen
                 _initializationBuilder.AppendLine("");
 
                 //get shaders and create in shaderIds for them;
-                var shaderCounter = 0;
                 foreach (var shader in shaders)
                 {
                     var stringField = shader.Declaration.Variables.First().Identifier.Text;
@@ -59,11 +58,16 @@ namespace ShaderCodeGen
 
                     //add declaration and initialization for shaders
                     _declarationsBuilder.AppendLine($"{DoubleTab}public static int {intField} {{get; private set;}}");
-                    var shaderVariable = stringField + shaderCounter++;
-                    _initializationBuilder.AppendLine($"{TripleTab}{intField} = Shader.PropertyToID({stringFieldValue});");
-                    _initializationBuilder.AppendLine($"{TripleTab}shaderTasks.Add(Addressables.LoadAssetAsync<Shader>({stringFieldValue}).Task);");
-                    _initializationBuilder.AppendLine($"{TripleTab}shaderIds.Add({intField});");
-                    _initializationBuilder.AppendLine("");
+                    _initializationBuilder.Append(
+                        $@"
+            {intField} = Shader.PropertyToID({stringFieldValue});
+#if UNITY_WEBGL && !UNITY_EDITOR
+            shaderTasks.Add(Addressables.LoadAssetAsync<Shader>({stringFieldValue}).ToTask());
+#else
+            shaderTasks.Add(Addressables.LoadAssetAsync<Shader>({stringFieldValue}).Task);
+#endif
+            shaderIds.Add({intField});
+                        ");
                 }
 
                 //CODE OF GENERATED CLASS                    
@@ -85,7 +89,7 @@ namespace {namespaceStr}
 
         public static Task Initialization {{ get; private set; }}
 
-        public static IsInitializationCompleted => Initialization.IsCompleted;   
+        public static bool IsInitializationCompleted => Initialization.IsCompleted;   
         
         static MaterialProvider()
         {{
@@ -115,14 +119,15 @@ namespace {namespaceStr}
                 context.AddSource(classDeclaration.Identifier.Text + "Generated.cs", SourceText.From(_classBuilder.ToString(), Encoding.UTF8));
             }
 
-            StringBuilder codeGenResultTest = new StringBuilder();
-            var test = "";
-            codeGenResultTest.AppendLine("namespace CodeGenTest{");
-            codeGenResultTest.AppendLine("public static class CodeGenResultTest{");
-            codeGenResultTest.AppendLine($"public static string Result = \"{test}\"; }} ");
-            codeGenResultTest.AppendLine("}");
-
-            context.AddSource("CodeGenTest.cs", SourceText.From(codeGenResultTest.ToString(), Encoding.UTF8));
+            // test purpose only to check if codegen works
+            // StringBuilder codeGenResultTest = new StringBuilder();
+            // var test = "";
+            // codeGenResultTest.AppendLine("namespace CodeGenTest{");
+            // codeGenResultTest.AppendLine("public static class CodeGenResultTest{");
+            // codeGenResultTest.AppendLine($"public static string Result = \"{test}\"; }} ");
+            // codeGenResultTest.AppendLine("}");
+            //
+            // context.AddSource("CodeGenTest.cs", SourceText.From(codeGenResultTest.ToString(), Encoding.UTF8));
         }
 
         public void Initialize(GeneratorInitializationContext context)
