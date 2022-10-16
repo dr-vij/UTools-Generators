@@ -5,11 +5,11 @@
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
-      <OutputPath>../../UnityProject/Assets/Plugins/ViJApps/CanvasTexture/CodeGen/netstandard2.0/</OutputPath>
+      <OutputPath>../../UnityProject/Assets/Plugins/ViJApps/CanvasTexture/CodeGen/</OutputPath>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-      <OutputPath>../../UnityProject/Assets/Plugins/ViJApps/CanvasTexture/CodeGen/netstandard2.0/</OutputPath>
+      <OutputPath>../../UnityProject/Assets/Plugins/ViJApps/CanvasTexture/CodeGen</OutputPath>
     </PropertyGroup>
 
     <ItemGroup>
