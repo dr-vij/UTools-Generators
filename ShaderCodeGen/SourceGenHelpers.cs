@@ -6,9 +6,9 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace ShaderCodeGen
+namespace CanvasTextureSourceGenerators
 {
-    public static class CodeGenHelpers
+    public static class SourceGenHelpers
     {
         /// <summary>
         /// Changes the TEST_TEXT_EXAMPLE to TestTextExample
@@ -25,6 +25,7 @@ namespace ShaderCodeGen
             }
             return string.Concat(words);
         }
+        
         
         public static IEnumerable<FieldDeclarationSyntax> GetConstantsOfTypeByAttribute(
             this ClassDeclarationSyntax classDeclaration,

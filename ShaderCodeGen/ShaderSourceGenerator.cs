@@ -2,7 +2,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 
-namespace ShaderCodeGen
+namespace CanvasTextureSourceGenerators
 {
     [Generator]
     public class ShaderSourceGenerator : ISourceGenerator
@@ -61,12 +61,8 @@ namespace ShaderCodeGen
                     _initializationBuilder.Append(
                         $@"
             {intField} = Shader.PropertyToID({stringFieldValue});
-#if UNITY_WEBGL && !UNITY_EDITOR
-            shaderTasks.Add(Addressables.LoadAssetAsync<Shader>({stringFieldValue}).ToTask());
-#else
-            shaderTasks.Add(Addressables.LoadAssetAsync<Shader>({stringFieldValue}).Task);
-#endif
-            shaderIds.Add({intField});
+            Shaders[{intField}] = Resources.Load<Shader>({stringFieldValue});
+            Materials[{intField}] = new Material(Shaders[{intField}]);
                         ");
                 }
 
@@ -86,28 +82,10 @@ namespace {namespaceStr}
 
         private static readonly Dictionary<int, Shader> Shaders = new Dictionary<int, Shader>();
         private static readonly Dictionary<int, Material> Materials = new Dictionary<int, Material>();
-
-        public static Task Initialization {{ get; private set; }}
-
-        public static bool IsInitializationCompleted => Initialization.IsCompleted;   
         
-        static MaterialProvider()
+        static {classDeclaration.Identifier.Text}()
         {{
-            Initialization = Init();
-        }}
-
-        private async static Task Init() 
-        {{ 
-            var shaderTasks = new List<Task<Shader>>();
-            var shaderIds = new List<int>();
 {_initializationBuilder} 
-            await Task.WhenAll(shaderTasks);
-
-            for(int i = 0; i < shaderIds.Count; i++)
-            {{
-                Shaders[shaderIds[i]] = shaderTasks[i].Result;
-                Materials[shaderIds[i]] = new Material(shaderTasks[i].Result);
-            }}
         }}
 
         public static Shader GetShader(int shader) => Shaders[shader];
@@ -132,6 +110,7 @@ namespace {namespaceStr}
 
         public void Initialize(GeneratorInitializationContext context)
         {
+            //Dont need it for now
         }
     }
 }
