@@ -28,7 +28,7 @@ namespace UTools.SourceGenerators
             foreach (var originalClass in originalClasses)
             {
                 var classNamespace = originalClass.Ancestors().OfType<NamespaceDeclarationSyntax>().FirstOrDefault();
-                var fields = originalClass.Members.OfType<FieldDeclarationSyntax>().Where(field => field.HasAttribute(nameof(SubscriptionField))).ToArray();
+                var fields = originalClass.Members.OfType<FieldDeclarationSyntax>().Where(field => field.HasAttribute("SubscriptionField")).ToArray();
                 if (fields.Length != 0)
                 {
                     var newClass = originalClass.WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>());
@@ -77,7 +77,7 @@ namespace UTools.SourceGenerators
                         var eventSyntax = SyntaxFactory.EventDeclaration(
                                 SyntaxFactory.GenericName(SyntaxFactory.Identifier("EventHandler"))
                                     .WithTypeArgumentList(SyntaxFactory.TypeArgumentList(
-                                        SyntaxFactory.SingletonSeparatedList<TypeSyntax>(SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.BoolKeyword))))),
+                                        SyntaxFactory.SingletonSeparatedList(fieldType))),
                                 SyntaxFactory.Identifier(publicEventName))
                             .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword))
                             .WithAccessorList(SyntaxFactory.AccessorList(SyntaxFactory.List(new[] { addAccessor, removeAccessor })));
@@ -184,11 +184,10 @@ namespace UTools.SourceGenerators
                         compilationUnit = compilationUnit.AddMembers(newClass);
                     }
 
-                    var workspace = new AdhocWorkspace();
-                    var formattedNode = Formatter.Format(compilationUnit, workspace);
-                    var formattedCode = formattedNode.ToFullString();
-
-                    context.AddSource(originalClass.Identifier.Text + "generated.cs", SourceText.From(formattedCode, Encoding.UTF8));
+                    var code = compilationUnit
+                        .NormalizeWhitespace()
+                        .ToFullString();
+                    context.AddSource(originalClass.Identifier.Text + "Generated.cs", SourceText.From(code, Encoding.UTF8));
                 }
             }
         }
