@@ -1,14 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace CanvasTextureSourceGenerators
+namespace UTools.SourceGenerators
 {
-    public static class SourceGenHelpers
+    public static class SourceGeneratorHelpers
     {
         /// <summary>
         /// Changes the TEST_TEXT_EXAMPLE to TestTextExample
@@ -23,10 +22,10 @@ namespace CanvasTextureSourceGenerators
                 var word = words[i];
                 words[i] = char.ToUpper(word[0]) + word.Substring(1).ToLower();
             }
+
             return string.Concat(words);
         }
-        
-        
+
         public static IEnumerable<FieldDeclarationSyntax> GetConstantsOfTypeByAttribute(
             this ClassDeclarationSyntax classDeclaration,
             string attribute,
@@ -42,6 +41,15 @@ namespace CanvasTextureSourceGenerators
                 }
             );
         }
+        
+        public static IEnumerable<ClassDeclarationSyntax> GetClassesByFieldAttribute(this Compilation compilation, string attribute)
+        {
+            return compilation.SyntaxTrees
+                .SelectMany(tree => tree.GetRoot().DescendantNodes())
+                .OfType<ClassDeclarationSyntax>()
+                .Where(classDec => classDec.Members.OfType<FieldDeclarationSyntax>()
+                    .Any(field => field.HasAttribute(attribute)));
+        }
 
         public static IEnumerable<ClassDeclarationSyntax> GetClassesByAttribute(this Compilation compilation, string attribute)
         {
@@ -55,7 +63,7 @@ namespace CanvasTextureSourceGenerators
         {
             return fieldSyntax.AttributeLists.HasAttribute(attribute);
         }
-        
+
         public static bool HasAttribute(this BaseTypeDeclarationSyntax classSyntax, string attribute)
         {
             return classSyntax.AttributeLists.HasAttribute(attribute);
@@ -68,7 +76,7 @@ namespace CanvasTextureSourceGenerators
                 list.Attributes.Any(attr =>
                     attr.Name.ToString() == attribute || attr.Name.ToString() == longAttribute));
         }
-        
+
         // determine the namespace the class/enum/struct is declared in, if any
         //implementation from https://andrewlock.net/creating-a-source-generator-part-5-finding-a-type-declarations-namespace-and-type-hierarchy/
         public static string GetNamespace(this BaseTypeDeclarationSyntax syntax)
@@ -80,11 +88,11 @@ namespace CanvasTextureSourceGenerators
             // Get the containing syntax node for the type declaration
             // (could be a nested type, for example)
             SyntaxNode potentialNamespaceParent = syntax.Parent;
-    
+
             // Keep moving "out" of nested classes etc until we get to a namespace
             // or until we run out of parents
             while (potentialNamespaceParent != null &&
-                   !(potentialNamespaceParent is  NamespaceDeclarationSyntax))
+                   !(potentialNamespaceParent is NamespaceDeclarationSyntax))
             {
                 potentialNamespaceParent = potentialNamespaceParent.Parent;
             }
@@ -94,7 +102,7 @@ namespace CanvasTextureSourceGenerators
             {
                 // We have a namespace. Use that as the type
                 nameSpace = namespaceParent.Name.ToString();
-        
+
                 // Keep moving "out" of the namespace declarations until we 
                 // run out of nested namespace declarations
                 while (true)

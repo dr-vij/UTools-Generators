@@ -1,8 +1,10 @@
-﻿using System.Text;
+﻿using System;
+using System.Collections.Generic;
+using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 
-namespace CanvasTextureSourceGenerators
+namespace UTools.SourceGenerators
 {
     [Generator]
     public class ShaderSourceGenerator : ISourceGenerator
@@ -14,9 +16,9 @@ namespace CanvasTextureSourceGenerators
         private const string ShaderPropertiesProviderAttribute = "ShaderPropertiesProvider";
         private const string ShaderPropertyAttribute = "ShaderProperty";
 
-        private readonly StringBuilder _declarationsBuilder = new StringBuilder();
-        private readonly StringBuilder _initializationBuilder = new StringBuilder();
-        private readonly StringBuilder _classBuilder = new StringBuilder();
+        private readonly StringBuilder m_DeclarationsBuilder = new StringBuilder();
+        private readonly StringBuilder m_InitializationBuilder = new StringBuilder();
+        private readonly StringBuilder m_ClassBuilder = new StringBuilder();
 
         public void Execute(GeneratorExecutionContext context)
         {
@@ -25,9 +27,9 @@ namespace CanvasTextureSourceGenerators
 
             foreach (var classDeclaration in classes)
             {
-                _classBuilder.Clear();
-                _declarationsBuilder.Clear();
-                _initializationBuilder.Clear();
+                m_ClassBuilder.Clear();
+                m_DeclarationsBuilder.Clear();
+                m_InitializationBuilder.Clear();
 
                 var shaderPropertyFields = classDeclaration.GetConstantsOfTypeByAttribute(ShaderPropertyAttribute, "string");
                 var shaders = classDeclaration.GetConstantsOfTypeByAttribute(ShaderAttribute, "string");
@@ -41,13 +43,13 @@ namespace CanvasTextureSourceGenerators
                     var intField = stringField.ConstToCamelCase() + "PropertyId";
 
                     //add declaration and initialization for shaders
-                    _declarationsBuilder.AppendLine($"{DoubleTab}public static int {intField} {{get; private set;}}");
+                    m_DeclarationsBuilder.AppendLine($"{DoubleTab}public static int {intField} {{get; private set;}}");
 
-                    _initializationBuilder.AppendLine($"{TripleTab}{intField} = Shader.PropertyToID({stringFieldValue});");
+                    m_InitializationBuilder.AppendLine($"{TripleTab}{intField} = Shader.PropertyToID({stringFieldValue});");
                 }
 
-                _declarationsBuilder.AppendLine("");
-                _initializationBuilder.AppendLine("");
+                m_DeclarationsBuilder.AppendLine("");
+                m_InitializationBuilder.AppendLine("");
 
                 //get shaders and create in shaderIds for them;
                 foreach (var shader in shaders)
@@ -57,8 +59,8 @@ namespace CanvasTextureSourceGenerators
                     var intField = stringField.ConstToCamelCase() + "ShaderId";
 
                     //add declaration and initialization for shaders
-                    _declarationsBuilder.AppendLine($"{DoubleTab}public static int {intField} {{get; private set;}}");
-                    _initializationBuilder.Append(
+                    m_DeclarationsBuilder.AppendLine($"{DoubleTab}public static int {intField} {{get; private set;}}");
+                    m_InitializationBuilder.Append(
                         $@"
             {intField} = Shader.PropertyToID({stringFieldValue});
             Shaders[{intField}] = Resources.Load<Shader>({stringFieldValue});
@@ -67,7 +69,7 @@ namespace CanvasTextureSourceGenerators
                 }
 
                 //CODE OF GENERATED CLASS                    
-                _classBuilder.Append(
+                m_ClassBuilder.Append(
                     $@"
 using UnityEngine;
 using System.Collections.Generic;
@@ -78,14 +80,14 @@ namespace {namespaceStr}
 {{
     public static partial class {classDeclaration.Identifier.Text} 
     {{ 
-{_declarationsBuilder} 
+{m_DeclarationsBuilder} 
 
         private static readonly Dictionary<int, Shader> Shaders = new Dictionary<int, Shader>();
         private static readonly Dictionary<int, Material> Materials = new Dictionary<int, Material>();
         
         static {classDeclaration.Identifier.Text}()
         {{
-{_initializationBuilder} 
+{m_InitializationBuilder} 
         }}
 
         public static Shader GetShader(int shader) => Shaders[shader];
@@ -94,18 +96,8 @@ namespace {namespaceStr}
     }}
 }}");
                 //END OF CODE OF GENERATED CLASS
-                context.AddSource(classDeclaration.Identifier.Text + "Generated.cs", SourceText.From(_classBuilder.ToString(), Encoding.UTF8));
+                context.AddSource(classDeclaration.Identifier.Text + "Generated.cs", SourceText.From(m_ClassBuilder.ToString(), Encoding.UTF8));
             }
-
-            // test purpose only to check if codegen works
-            // StringBuilder codeGenResultTest = new StringBuilder();
-            // var test = "";
-            // codeGenResultTest.AppendLine("namespace CodeGenTest{");
-            // codeGenResultTest.AppendLine("public static class CodeGenResultTest{");
-            // codeGenResultTest.AppendLine($"public static string Result = \"{test}\"; }} ");
-            // codeGenResultTest.AppendLine("}");
-            //
-            // context.AddSource("CodeGenTest.cs", SourceText.From(codeGenResultTest.ToString(), Encoding.UTF8));
         }
 
         public void Initialize(GeneratorInitializationContext context)
