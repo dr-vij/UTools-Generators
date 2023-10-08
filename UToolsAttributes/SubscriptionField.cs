@@ -1,6 +1,6 @@
 using System;
 
-namespace UTools.SourceGeneratorAttributes
+namespace UTools.Attributes
 {
     [AttributeUsage(AttributeTargets.Field)]
     public class SubscriptionField : Attribute

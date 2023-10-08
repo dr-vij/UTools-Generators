@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>netstandard2.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <UserSecretsId>7ed67146-ee03-4ce8-8f4a-79a31ccb5b86</UserSecretsId>
+        <LangVersion>9</LangVersion>
+    </PropertyGroup>
+
+</Project>

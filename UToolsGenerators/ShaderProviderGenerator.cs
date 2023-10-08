@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Text;
 namespace UTools.SourceGenerators
 {
     [Generator]
-    public class ShaderSourceGenerator : ISourceGenerator
+    public class ShaderProviderGenerator : ISourceGenerator
     {
         const string TripleTab = "\t\t\t";
         const string DoubleTab = "\t\t";
