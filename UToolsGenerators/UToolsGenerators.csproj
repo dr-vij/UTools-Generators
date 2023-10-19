@@ -8,11 +8,11 @@
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
-      <OutputPath>bin/Debug/</OutputPath>
+      <OutputPath>../Build/Debug</OutputPath>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-      <OutputPath>bin/Release/</OutputPath>
+      <OutputPath>../Build/Release</OutputPath>
     </PropertyGroup>
 
     <ItemGroup>

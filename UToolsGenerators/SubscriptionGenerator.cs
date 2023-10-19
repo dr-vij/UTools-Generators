@@ -19,17 +19,25 @@ namespace UTools.SourceGenerators
 
         public void Execute(GeneratorExecutionContext context)
         {
-            var originalClasses = context.Compilation.SyntaxTrees
+            var originalClassesWithUsings = context.Compilation.SyntaxTrees
                 .SelectMany(tree => tree.GetRoot().DescendantNodes())
-                .OfType<ClassDeclarationSyntax>();
+                .OfType<ClassDeclarationSyntax>()
+                .Select(classNode => new
+                {
+                    Class = classNode,
+                    Usings = classNode.AncestorsAndSelf()
+                        .OfType<CompilationUnitSyntax>()
+                        .FirstOrDefault()?
+                        .Usings
+                });
 
-            foreach (var originalClass in originalClasses)
+            foreach (var originalClassWithUsing in originalClassesWithUsings)
             {
-                var classNamespace = originalClass.Ancestors().OfType<NamespaceDeclarationSyntax>().FirstOrDefault();
-                var fields = originalClass.Members.OfType<FieldDeclarationSyntax>().Where(field => field.HasAttribute("SubscriptionField")).ToArray();
+                var classNamespace = originalClassWithUsing.Class.Ancestors().OfType<NamespaceDeclarationSyntax>().FirstOrDefault();
+                var fields = originalClassWithUsing.Class.Members.OfType<FieldDeclarationSyntax>().Where(field => field.HasAttribute("SubscriptionField")).ToArray();
                 if (fields.Length != 0)
                 {
-                    var newClass = originalClass.WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>());
+                    var newClass = originalClassWithUsing.Class.WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>());
                     foreach (var field in fields)
                     {
                         var isStatic = field.Modifiers.Any(SyntaxKind.StaticKeyword);
@@ -168,10 +176,20 @@ namespace UTools.SourceGenerators
                         newClass = newClass.AddMembers(partialMethodSyntax);
                     }
 
+                    //We take the original usings and add them to the new class + System + UnityEngine
                     var compilationUnit = SyntaxFactory.CompilationUnit().AddUsings(
                         SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System")),
                         SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("UnityEngine"))
                     );
+                    if (originalClassWithUsing.Usings != null)
+                    {
+                        foreach (var usingDirective in originalClassWithUsing.Usings.Value)
+                        {
+                            if (compilationUnit.Usings.All(c => c.Name.ToString() != usingDirective.Name.ToString()))
+                                compilationUnit = compilationUnit.AddUsings(usingDirective);
+                        }
+                    }
+
                     if (classNamespace != null)
                     {
                         var namespaceDeclaration = SyntaxFactory.NamespaceDeclaration(classNamespace.Name).AddMembers(newClass);
@@ -185,7 +203,7 @@ namespace UTools.SourceGenerators
                     var code = compilationUnit
                         .NormalizeWhitespace()
                         .ToFullString();
-                    context.AddSource(originalClass.Identifier.Text + "Generated.cs", SourceText.From(code, Encoding.UTF8));
+                    context.AddSource(originalClassWithUsing.Class.Identifier.Text + "Generated.cs", SourceText.From(code, Encoding.UTF8));
                 }
             }
         }
