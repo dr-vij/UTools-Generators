@@ -1,3 +1,5 @@
+using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -19,19 +21,9 @@ namespace UTools.SourceGenerators
 
         public void Execute(GeneratorExecutionContext context)
         {
-            var originalClassesWithUsings = context.Compilation.SyntaxTrees
-                .SelectMany(tree => tree.GetRoot().DescendantNodes())
-                .OfType<ClassDeclarationSyntax>()
-                .Select(classNode => new
-                {
-                    Class = classNode,
-                    Usings = classNode.AncestorsAndSelf()
-                        .OfType<CompilationUnitSyntax>()
-                        .FirstOrDefault()?
-                        .Usings
-                });
+            var originalClassesWithUsing = context.Compilation.GetClassWithUsing();
 
-            foreach (var originalClassWithUsing in originalClassesWithUsings)
+            foreach (var originalClassWithUsing in originalClassesWithUsing)
             {
                 var classNamespace = originalClassWithUsing.Class.Ancestors().OfType<NamespaceDeclarationSyntax>().FirstOrDefault();
                 var fields = originalClassWithUsing.Class.Members.OfType<FieldDeclarationSyntax>().Where(field => field.HasAttribute("SubscriptionField")).ToArray();
