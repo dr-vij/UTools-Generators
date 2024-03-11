@@ -13,8 +13,6 @@ namespace UTools.SourceGenerators
     [Generator]
     public class SubscriptionGenerator : ISourceGenerator
     {
-        static readonly Regex PrefixRemover = new Regex("^[a-z_]+", RegexOptions.Compiled);
-
         public void Initialize(GeneratorInitializationContext context)
         {
         }
@@ -36,7 +34,7 @@ namespace UTools.SourceGenerators
                         var fieldType = field.Declaration.Type;
                         var fieldName = field.Declaration.Variables.First().Identifier.Text;
 
-                        var propertyName = PrefixRemover.Replace(fieldName, "");
+                        var propertyName = fieldName.RemovePrefix();
 
                         //Prepare modifiers for the event. We want it to be private, and static if the field is static
                         var eventFieldModifiers = SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PrivateKeyword));

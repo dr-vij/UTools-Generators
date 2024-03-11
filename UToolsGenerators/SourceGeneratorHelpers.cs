@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -9,6 +10,13 @@ namespace UTools.SourceGenerators
 {
     public static class ClassDeclarationHelpers
     {
+        static readonly Regex PrefixRemover = new Regex("^[a-z_]+", RegexOptions.Compiled);
+
+        public static string RemovePrefix(this string str)
+        {
+            return PrefixRemover.Replace(str, "");
+        }
+
         /// <summary>
         /// Retrieves all syntax nodes of a specific type from the given compilation.
         /// </summary>
@@ -43,17 +51,25 @@ namespace UTools.SourceGenerators
                 .SelectMany(tree => tree.GetRoot().DescendantNodes());
         }
 
+        public static UsingDirectiveSyntax[] GetUsingArr(this ClassDeclarationSyntax classDeclaration)
+        {
+            return classDeclaration.GetUsing()?.ToArray() ?? Array.Empty<UsingDirectiveSyntax>();
+        }
+
+        public static SyntaxList<UsingDirectiveSyntax>? GetUsing(this ClassDeclarationSyntax classDeclaration)
+        {
+            return classDeclaration.AncestorsAndSelf()
+                .OfType<CompilationUnitSyntax>()
+                .FirstOrDefault()?
+                .Usings;
+        }
+
         public static IEnumerable<(ClassDeclarationSyntax Class, SyntaxList<UsingDirectiveSyntax>? Usings)> GetClassWithUsing(this Compilation compilation)
         {
-            return compilation.SyntaxTrees
-                .SelectMany(tree => tree.GetRoot().DescendantNodes())
-                .OfType<ClassDeclarationSyntax>()
+            return compilation.GetNodesOfType<ClassDeclarationSyntax>()
                 .Select(classNode => (
                     Class: classNode,
-                    Usings: classNode.AncestorsAndSelf()
-                        .OfType<CompilationUnitSyntax>()
-                        .FirstOrDefault()?
-                        .Usings
+                    Usings: classNode.GetUsing()
                 ));
         }
 
@@ -88,9 +104,7 @@ namespace UTools.SourceGenerators
         /// <returns></returns>
         public static IEnumerable<ClassDeclarationSyntax> GetClassesByFieldAttribute(this Compilation compilation, string attribute)
         {
-            return compilation.SyntaxTrees
-                .SelectMany(tree => tree.GetRoot().DescendantNodes())
-                .OfType<ClassDeclarationSyntax>()
+            return compilation.GetNodesOfType<ClassDeclarationSyntax>()
                 .Where(classDec => classDec.Members.OfType<FieldDeclarationSyntax>()
                     .Any(field => field.HasAttribute(attribute)));
         }
@@ -103,9 +117,7 @@ namespace UTools.SourceGenerators
         /// <returns></returns>
         public static IEnumerable<ClassDeclarationSyntax> GetClassesByAttribute(this Compilation compilation, string attribute)
         {
-            return compilation.SyntaxTrees
-                .SelectMany(x => x.GetRoot().DescendantNodes())
-                .OfType<ClassDeclarationSyntax>()
+            return compilation.GetNodesOfType<ClassDeclarationSyntax>()
                 .Where(classDec => classDec.HasAttribute(attribute));
         }
     }

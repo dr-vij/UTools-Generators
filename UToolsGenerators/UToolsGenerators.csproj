@@ -19,4 +19,8 @@
       <PackageReference Include="Microsoft.CodeAnalysis" Version="3.8.0" />
     </ItemGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\UToolsAttributes\UToolsAttributes.csproj" />
+    </ItemGroup>
+
 </Project>
