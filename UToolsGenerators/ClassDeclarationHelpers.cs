@@ -141,25 +141,25 @@ namespace UTools.SourceGenerators
         ///  Get all classes that have a specific attribute on a field
         /// </summary>
         /// <param name="compilation"></param>
-        /// <param name="attribute"></param>
+        /// <param name="attributes"></param>
         /// <returns></returns>
-        public static IEnumerable<ClassDeclarationSyntax> GetClassesByFieldAttribute(this Compilation compilation, string attribute)
+        public static IEnumerable<ClassDeclarationSyntax> GetClassesByFieldAttributes(this Compilation compilation, params string[] attributes)
         {
             return compilation.GetNodesOfType<ClassDeclarationSyntax>()
                 .Where(classDec => classDec.Members.OfType<FieldDeclarationSyntax>()
-                    .Any(field => field.HasAttribute(attribute)));
+                    .Any(field => attributes.Any(field.HasAttribute)));
         }
 
         /// <summary>
         ///  Get all classes that have a specific attribute
         /// </summary>
         /// <param name="compilation"></param>
-        /// <param name="attribute"></param>
+        /// <param name="attributes"></param>
         /// <returns></returns>
-        public static IEnumerable<ClassDeclarationSyntax> GetClassesByAttribute(this Compilation compilation, string attribute)
+        public static IEnumerable<ClassDeclarationSyntax> GetClassesByAttributes(this Compilation compilation, params string[] attributes)
         {
             return compilation.GetNodesOfType<ClassDeclarationSyntax>()
-                .Where(classDec => classDec.HasAttribute(attribute));
+                .Where(classDec => attributes.Any(classDec.HasAttribute));
         }
     }
 }

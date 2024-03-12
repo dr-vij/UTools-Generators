@@ -16,14 +16,14 @@ namespace UTools.SourceGenerators
         private const string ShaderPropertiesProviderAttribute = "ShaderPropertiesProvider";
         private const string ShaderPropertyAttribute = "ShaderProperty";
 
-        private readonly StringBuilder m_DeclarationsBuilder = new StringBuilder();
-        private readonly StringBuilder m_InitializationBuilder = new StringBuilder();
-        private readonly StringBuilder m_ClassBuilder = new StringBuilder();
+        private readonly StringBuilder m_DeclarationsBuilder = new ();
+        private readonly StringBuilder m_InitializationBuilder = new ();
+        private readonly StringBuilder m_ClassBuilder = new ();
 
         public void Execute(GeneratorExecutionContext context)
         {
             //find classes with ShaderPropertiesProvider attribute
-            var classes = context.Compilation.GetClassesByAttribute(ShaderPropertiesProviderAttribute);
+            var classes = context.Compilation.GetClassesByAttributes(ShaderPropertiesProviderAttribute);
 
             foreach (var classDeclaration in classes)
             {

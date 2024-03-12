@@ -15,7 +15,7 @@ namespace UTools.Attributes
     /// This attribute is used for SourceGenerator. Add it to generate automatic subscriptions
     /// </summary>
     [AttributeUsage(AttributeTargets.Field)]
-    public class SubscriptionField : Attribute
+    public class EventSubscription : Attribute
     {
         public string PropertyName { get; set; } = string.Empty;
     }

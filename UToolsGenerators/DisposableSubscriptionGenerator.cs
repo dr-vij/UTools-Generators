@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
@@ -12,6 +13,17 @@ namespace UTools.SourceGenerators
     [Generator]
     public class DisposableSubscriptionGenerator : ISourceGenerator
     {
+        private readonly List<MemberDeclarationSyntax> m_Members = new();
+
+        private readonly List<UsingDirectiveSyntax> m_ExtraUsing = new()
+        {
+            SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("UTools")),
+            SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System"))
+        };
+
+        private UsingDirectiveSyntax m_UToolsUsing = SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("UTools"));
+        private UsingDirectiveSyntax m_SystemUsing = SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System"));
+
         public void Initialize(GeneratorInitializationContext context)
         {
         }
@@ -19,39 +31,61 @@ namespace UTools.SourceGenerators
         public void Execute(GeneratorExecutionContext context)
         {
             var compilation = context.Compilation;
-            var attributeName = nameof(DisposableSubscription);
+            var disposableSubscriptionAttribute = nameof(DisposableSubscription);
+            var eventSubscriptionAttribute = nameof(EventSubscription);
 
-            var classNodes = compilation.GetClassesByFieldAttribute(attributeName);
+            var fieldAttributes = new[] { disposableSubscriptionAttribute, eventSubscriptionAttribute };
+
+            var classNodes = compilation.GetClassesByFieldAttributes(fieldAttributes);
+            var counter = 0;
 
             foreach (var classNode in classNodes)
             {
                 var className = classNode.Identifier.Text;
                 var fieldNodes = classNode.Members
                     .OfType<FieldDeclarationSyntax>()
-                    .Where(fieldNode => fieldNode.HasAttribute(attributeName));
+                    .Where(fieldNode => fieldAttributes.Any(fieldNode.HasAttribute));
 
                 var newClass = classNode.WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>()).WithoutTrivia();
-                foreach (var field in fieldNodes)
+                foreach (var fieldNode in fieldNodes)
                 {
-                    var isStatic = field.Modifiers.Any(SyntaxKind.StaticKeyword);
-                    var fieldType = field.Declaration.Type;
+                    var isStatic = fieldNode.Modifiers.Any(SyntaxKind.StaticKeyword);
+                    var fieldType = fieldNode.Declaration.Type;
 
-                    var fieldName = field.Declaration.Variables.First().Identifier.Text;
-                    var eventName = $"{fieldName}Changed";
+                    var fieldName = fieldNode.Declaration.Variables.First().Identifier.Text;
+                    var privateEventName = $"{fieldName}Changed";
                     var propertyName = fieldName.RemovePrefix();
+                    var subscriptionEventName = $"{propertyName}Changed";
                     var subscriptionMethodName = $"SubscribeTo{propertyName}";
                     var partialMethodName = $"On{propertyName}Change";
 
-                    var eventField = CreateEventField(fieldType, eventName, isStatic);
-                    var propertyDeclaration = CreatePropertyAndCallbacks(fieldType, propertyName, fieldName, partialMethodName, eventName, isStatic);
-                    var subscriptionMethod = CreateDisposableSubscriptionMethod(fieldType, subscriptionMethodName, fieldName, eventName, isStatic);
+                    var eventField = CreateEventField(fieldType, privateEventName, isStatic);
+                    var propertyDeclaration = CreatePropertyAndCallbacks(fieldType, propertyName, fieldName, partialMethodName, privateEventName, isStatic);
                     var partialMethod = CreatePartialMethod(partialMethodName, fieldType, isStatic);
-                    
-                    newClass = newClass.AddMembers(eventField, propertyDeclaration, subscriptionMethod, partialMethod);
+
+                    m_Members.Clear();
+                    m_Members.Add(partialMethod);
+                    m_Members.Add(eventField);
+                    m_Members.Add(propertyDeclaration);
+
+                    if (fieldNode.HasAttribute(disposableSubscriptionAttribute))
+                    {
+                        var subscriptionMethod = CreateDisposableSubscriptionMethod(fieldType, subscriptionMethodName, fieldName, privateEventName, isStatic);
+                        m_Members.Add(subscriptionMethod);
+                    }
+
+                    if (fieldNode.HasAttribute(eventSubscriptionAttribute))
+                    {
+                        var subscriptionEvent = CreateSubscriptionEvent(fieldType, subscriptionEventName, fieldName, privateEventName, isStatic);
+                        m_Members.Add(subscriptionEvent);
+                    }
+
+                    newClass = newClass.AddMembers(m_Members.ToArray());
                 }
 
                 var compilationUnit = SyntaxFactory.CompilationUnit()
-                    .AddUsings(classNode.GetUsingArr());
+                    .AddUsings(classNode.GetUsingArr())
+                    .AddUsings(m_ExtraUsing.ToArray());
 
                 var classWithHierarchy = classNode.CopyHierarchyTo(newClass);
                 compilationUnit = compilationUnit.AddMembers(classWithHierarchy);
@@ -59,10 +93,9 @@ namespace UTools.SourceGenerators
                 var code = compilationUnit
                     .NormalizeWhitespace()
                     .ToFullString();
-                context.AddSource(className + "Generated.cs", SourceText.From(code, Encoding.UTF8));
+                context.AddSource(className + $"Gen{counter++}.cs", SourceText.From(code, Encoding.UTF8));
             }
         }
-
 
         /// <summary>
         /// Creates the event subscription for the given event name and field name
@@ -118,6 +151,9 @@ namespace UTools.SourceGenerators
             string eventName,
             bool isStatic)
         {
+            var modifiers = isStatic
+                ? SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword), SyntaxFactory.Token(SyntaxKind.StaticKeyword))
+                : SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword));
             var eventHandlerTypeName = isStatic ? "Action" : "EventHandler";
             var eventHandlerTypeArgumentList = SyntaxFactory.TypeArgumentList(SyntaxFactory.SingletonSeparatedList(fieldType));
             var eventHandlerType = SyntaxFactory.GenericName(SyntaxFactory.Identifier(eventHandlerTypeName))
@@ -150,7 +186,7 @@ namespace UTools.SourceGenerators
                         .WithArgumentList(handlerInvokeArguments)));
 
             var returnStatement = SyntaxFactory.ReturnStatement(
-                SyntaxFactory.ObjectCreationExpression(SyntaxFactory.IdentifierName("Subscription"))
+                SyntaxFactory.ObjectCreationExpression(SyntaxFactory.IdentifierName("DisposeAction"))
                     .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SingletonSeparatedList(SyntaxFactory.Argument(
                         SyntaxFactory.ParenthesizedLambdaExpression(removeAssignment))))));
 
@@ -159,11 +195,61 @@ namespace UTools.SourceGenerators
                 returnStatement);
 
             var methodDeclaration = SyntaxFactory.MethodDeclaration(SyntaxFactory.IdentifierName("IDisposable"), SyntaxFactory.Identifier(subscriptionMethodName))
-                .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
+                .WithModifiers(modifiers)
                 .WithParameterList(SyntaxFactory.ParameterList(SyntaxFactory.SingletonSeparatedList(parameter)))
                 .WithBody(methodBody);
 
             return methodDeclaration;
+        }
+
+        /// <summary>
+        ///  Create the subscription event for the given event name and field name
+        /// </summary>
+        /// <param name="fieldType"></param>
+        /// <param name="subscriptionEventName"></param>
+        /// <param name="fieldName"></param>
+        /// <param name="privateEventName"></param>
+        /// <param name="isStatic"></param>
+        /// <returns></returns>
+        private static EventDeclarationSyntax CreateSubscriptionEvent(TypeSyntax fieldType, string subscriptionEventName, string fieldName, string privateEventName,
+            bool isStatic)
+        {
+            var genericType = isStatic ? "Action" : "EventHandler";
+            // public static or public
+            var modifiers = isStatic
+                ? SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword), SyntaxFactory.Token(SyntaxKind.StaticKeyword))
+                : SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword));
+
+            //Prepare add and remove statements
+            var invokeStatement = isStatic
+                ? $"value?.Invoke({fieldName});"
+                : $"value?.Invoke(this, {fieldName});";
+            var addStatements = SyntaxFactory.List(new StatementSyntax[]
+            {
+                SyntaxFactory.ExpressionStatement(SyntaxFactory.ParseExpression(invokeStatement)),
+                SyntaxFactory.ExpressionStatement(SyntaxFactory.ParseExpression($"{privateEventName} += value"))
+            });
+
+            var removeStatements = SyntaxFactory.List(new StatementSyntax[]
+            {
+                SyntaxFactory.ExpressionStatement(SyntaxFactory.ParseExpression($"{privateEventName} -= value"))
+            });
+
+            var addAccessor = SyntaxFactory.AccessorDeclaration(SyntaxKind.AddAccessorDeclaration)
+                .WithBody(SyntaxFactory.Block(addStatements));
+
+            var removeAccessor = SyntaxFactory.AccessorDeclaration(SyntaxKind.RemoveAccessorDeclaration)
+                .WithBody(SyntaxFactory.Block(removeStatements));
+
+            //Buildup the event declaration
+            var eventSyntax = SyntaxFactory.EventDeclaration(
+                    SyntaxFactory.GenericName(SyntaxFactory.Identifier(genericType))
+                        .WithTypeArgumentList(SyntaxFactory.TypeArgumentList(
+                            SyntaxFactory.SingletonSeparatedList(fieldType))),
+                    SyntaxFactory.Identifier(subscriptionEventName))
+                .WithModifiers(modifiers)
+                .WithAccessorList(SyntaxFactory.AccessorList(SyntaxFactory.List(new[] { addAccessor, removeAccessor })));
+            return eventSyntax;
         }
 
         /// <summary>
