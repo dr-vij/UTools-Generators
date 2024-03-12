@@ -2,8 +2,14 @@ using UTools.Attributes;
 
 namespace SourceGeneratorExamples
 {
-    public partial class TestClass
+    public partial class TestTest
     {
-        [DisposableSubscription] private static bool m_TestField;
+        public partial class Test
+        {
+            public partial class TestClass
+            {
+                [DisposableSubscription] private static bool m_TestField;
+            }
+        }
     }
 }

@@ -35,34 +35,26 @@ namespace UTools.SourceGenerators
                 {
                     var isStatic = field.Modifiers.Any(SyntaxKind.StaticKeyword);
                     var fieldType = field.Declaration.Type;
-                
+
                     var fieldName = field.Declaration.Variables.First().Identifier.Text;
                     var eventName = $"{fieldName}Changed";
                     var propertyName = fieldName.RemovePrefix();
                     var subscriptionMethodName = $"SubscribeTo{propertyName}";
                     var partialMethodName = $"On{propertyName}Change";
-                
+
                     var eventField = CreateEventField(fieldType, eventName, isStatic);
                     var propertyDeclaration = CreatePropertyAndCallbacks(fieldType, propertyName, fieldName, partialMethodName, eventName, isStatic);
                     var subscriptionMethod = CreateDisposableSubscriptionMethod(fieldType, subscriptionMethodName, fieldName, eventName, isStatic);
                     var partialMethod = CreatePartialMethod(partialMethodName, fieldType, isStatic);
-                
+                    
                     newClass = newClass.AddMembers(eventField, propertyDeclaration, subscriptionMethod, partialMethod);
                 }
 
                 var compilationUnit = SyntaxFactory.CompilationUnit()
                     .AddUsings(classNode.GetUsingArr());
 
-                var classNamespace = classNode.Ancestors().OfType<NamespaceDeclarationSyntax>().FirstOrDefault();
-                if (classNamespace != null)
-                {
-                    var namespaceDeclaration = SyntaxFactory.NamespaceDeclaration(classNamespace.Name).AddMembers(newClass);
-                    compilationUnit = compilationUnit.AddMembers(namespaceDeclaration);
-                }
-                else
-                {
-                    compilationUnit = compilationUnit.AddMembers(newClass);
-                }
+                var classWithHierarchy = classNode.CopyHierarchyTo(newClass);
+                compilationUnit = compilationUnit.AddMembers(classWithHierarchy);
 
                 var code = compilationUnit
                     .NormalizeWhitespace()
@@ -70,6 +62,7 @@ namespace UTools.SourceGenerators
                 context.AddSource(className + "Generated.cs", SourceText.From(code, Encoding.UTF8));
             }
         }
+
 
         /// <summary>
         /// Creates the event subscription for the given event name and field name
