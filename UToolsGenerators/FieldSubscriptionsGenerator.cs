@@ -11,7 +11,7 @@ using UTools.SourceGeneratorAttributes;
 namespace UTools.SourceGenerators
 {
     [Generator]
-    public class DisposableSubscriptionGenerator : ISourceGenerator
+    public class FieldSubscriptionsGenerator : ISourceGenerator
     {
         private readonly List<MemberDeclarationSyntax> m_Members = new();
 

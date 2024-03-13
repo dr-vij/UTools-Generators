@@ -42,7 +42,7 @@ namespace UTools.SourceGeneratorAttributes
     /// This attribute is used for SourceGenerator. Add it to a string constant with shader name to make a shader property for it
     /// </summary>
     [AttributeUsage(AttributeTargets.Field)]
-    public class Shader : Attribute
+    public class ShaderName : Attribute
     {
     }
 
