@@ -1,79 +1,203 @@
-# This is the first topic
+# UTools-SourceGenerators Documentation
+## Subscriptions
 
-<!--Writerside adds this topic when you create a new documentation project.
-You can use it as a sandbox to play with Writerside features, and remove it from the TOC when you don't need it anymore.
-If you want to re-add it for your experiments, click + to create a new topic, choose Topic from Template, and select the 
-"Starter" template.-->
+This plugin is a Roslyn Source Generators tool that can be used for the automation of some boilerplate routines. 
+Add the DisposableSubscription or EventSubscription attribute to a field to automatically generate the subscription code and property for it.
 
-## Add new topics
-You can create empty topics, or choose a template for different types of content that contains some boilerplate structure to help you get started:
+It will create static subscriptions/properties/events in case you use static.
 
-![Create new topic options](new_topic_options.png){ border-effect="line" thumbnail="true" width="321"}
+## Installation
 
-## Write content
-%product% supports two types of markup: Markdown and XML.
-When you create a new help article, you can choose between two topic types, but this doesn't mean you have to stick to a single format.
-You can author content in Markdown and extend it with semantic attributes or inject entire XML elements.
+- Add UToolsGenerators.dll and UToolsAttributes.dll to your UNITY project.
+- Create an assembly for them.
+- Mark UToolsGenerators.dll as a Roslyn Analyzer (add the RoslynAnalyzer tag on it; see [UNITY documentation](https://docs.unity3d.com/2023.3/Documentation/Manual/roslyn-analyzers.html) for more details).
+- Make a link to the assembly in your project. The linked assembly will receive Source Generator benefits.
 
-For example, this is how you inject a procedure:
+<note>
+    <p>
+        Your class must be partial to use this feature. Global namespaces are not supported yet.
+    </p>
+</note>
 
-<procedure title="Inject a procedure" id="inject-a-procedure">
-    <step>
-        <p>Start typing <code>procedure</code> and select a procedure type from the completion suggestions:</p>
-        <img src="completion_procedure.png" alt="completion suggestions for procedure" border-effect="line"/>
-    </step>
-    <step>
-        <p>Press <shortcut>Tab</shortcut> or <shortcut>Enter</shortcut> to insert the markup.</p>
-    </step>
-</procedure>
+## DisposableSubscription
 
-## Add interactive elements
+<note>
+    <p>
+        You should use the U-Tools library that contains the DisposeAction class to use this feature, or implement your IDisposable unsubscriber by yourself (DisposeAction).
+    </p>
+</note>
 
-### Tabs
-To add switchable content, use tabs (start typing `tabs` on a new line).
+DisposableSubscription attribute example usage:
+```C#
+namespace ExampleNamespace.NameSpace
+{
+    public partial class DisposableSubscriptionExample
+    {
+        [DisposableSubscription] private static bool m_TestFieldDisposable;
+    }
+}
+```
 
-<tabs>
-    <tab title="Markdown">
-        <code-block lang="plain text">![Alt Text](new_topic_options.png){ width=450 }</code-block>
-    </tab>
-    <tab title="Semantic markup">
-        <code-block lang="xml">
-            <![CDATA[<img src="new_topic_options.png" alt="Alt text" width="450px"/>]]></code-block>
-    </tab>
-</tabs>
+The Subscription method is IDisposable, disposing it will remove the subscription.
+Generated code:
+```C#
+using UTools;
+using System;
 
-### Collapsible blocks
-Besides injecting entire XML elements, you can use attributes to configure the behavior of certain elements.
-For example, you can collapse a chapter that contains non-essential information like this:
+namespace ExampleNamespace.NameSpace
+{
+    public partial class DisposableSubscriptionExample
+    {
+        static partial void OnTestFieldDisposableChange(bool newValue);
+        static event Action<bool> m_TestFieldDisposableChanged;
+        public static bool TestFieldDisposable
+        {
+            get
+            {
+                return m_TestFieldDisposable;
+            }
 
-#### Supplementary info {collapsible="true"}
-Content under such header will be collapsed by default, but you can modify the behavior by adding the following attribute:
-`default-state="expanded"`
+            set
+            {
+                if (m_TestFieldDisposable != value)
+                {
+                    m_TestFieldDisposable = value;
+                    m_TestFieldDisposableChanged?.Invoke(value) ;;
+                    OnTestFieldDisposableChange(value);
+                }
+            }
+        }
 
-## Convert selection to XML
-If you need to extend an element with more functions, you can convert selected content from Markdown to semantic markup.
-For example, if you want to merge cells in a table, it's much easier to convert it to XML than do this in Markdown.
-Position the caret anywhere in the table and press <shortcut>Alt+Enter</shortcut>:
+        public static IDisposable SubscribeToTestFieldDisposable(Action<bool> handler)
+        {
+            m_TestFieldDisposableChanged += handler;
+            handler?.Invoke(m_TestFieldDisposable);
+            return new DisposeAction(() => m_TestFieldDisposableChanged -= handler);
+        }
+    }
+}
+```
 
-<img src="convert_table_to_xml.png" alt="Convert table to XML" width="706" border-effect="line"/>
+EventSubscription example usage:
+```C#
+namespace ExampleNamespace.NameSpace
+{
+    public partial class EventSubscriptionExample
+    {
+        [EventSubscription] private static bool m_TestFieldEvent;
+    }
+}
+```
 
-## Feedback and support
-Please report any issues, usability improvements, or feature requests to our 
-<a href="https://youtrack.jetbrains.com/newIssue?project=WRS">YouTrack project</a>
-(you will need to register).
+Generated code:
+```C#
+using UTools;
+using System;
 
-You are welcome to join our
-<a href="https://jb.gg/WRS_Slack">public Slack workspace</a>.
-Before you do, please read our [Code of conduct](https://plugins.jetbrains.com/plugin/20158-writerside/docs/writerside-code-of-conduct.html).
-We assume that you’ve read and acknowledged it before joining.
+namespace ExampleNamespace.NameSpace
+{
+    public partial class EventSubscriptionExample
+    {
+        static partial void OnTestFieldEventChange(bool newValue);
+        static event Action<bool> m_TestFieldEventChanged;
+        public static bool TestFieldEvent
+        {
+            get
+            {
+                return m_TestFieldEvent;
+            }
 
-You can also always email us at [writerside@jetbrains.com](mailto:writerside@jetbrains.com).
+            set
+            {
+                if (m_TestFieldEvent != value)
+                {
+                    m_TestFieldEvent = value;
+                    m_TestFieldEventChanged?.Invoke(value) ;;
+                    OnTestFieldEventChange(value);
+                }
+            }
+        }
 
-<seealso>
-    <category ref="wrs">
-        <a href="https://plugins.jetbrains.com/plugin/20158-writerside/docs/markup-reference.html">Markup reference</a>
-        <a href="https://plugins.jetbrains.com/plugin/20158-writerside/docs/manage-table-of-contents.html">Reorder topics in the TOC</a>
-        <a href="https://plugins.jetbrains.com/plugin/20158-writerside/docs/local-build.html">Build and publish</a>
-        <a href="https://plugins.jetbrains.com/plugin/20158-writerside/docs/configure-search.html">Configure Search</a>
-    </category>
-</seealso>
+        public static event Action<bool> TestFieldEventChanged
+        {
+            add
+            {
+                value?.Invoke(m_TestFieldEvent) ;;
+                m_TestFieldEventChanged += value;
+            }
+
+            remove
+            {
+                m_TestFieldEventChanged -= value;
+            }
+        }
+    }
+}
+```
+
+
+
+Combined Subscriptions (DisposableSubscription + EventSubscription) example usage:
+```C#
+namespace ExampleNamespace.NameSpace
+{
+    public partial class CombinedSubscriptionsExample
+    {
+        [DisposableSubscription] [EventSubscription]
+        private static bool m_TwoSubscriptionsField;
+    }
+}
+```
+
+Generated code:
+```C#
+using UTools;
+using System;
+
+namespace ExampleNamespace.NameSpace
+{
+    public partial class CombinedSubscriptionsExample
+    {
+        static partial void OnTwoSubscriptionsFieldChange(bool newValue);
+        static event Action<bool> m_TwoSubscriptionsFieldChanged;
+        public static bool TwoSubscriptionsField
+        {
+            get
+            {
+                return m_TwoSubscriptionsField;
+            }
+
+            set
+            {
+                if (m_TwoSubscriptionsField != value)
+                {
+                    m_TwoSubscriptionsField = value;
+                    m_TwoSubscriptionsFieldChanged?.Invoke(value) ;;
+                    OnTwoSubscriptionsFieldChange(value);
+                }
+            }
+        }
+
+        public static IDisposable SubscribeToTwoSubscriptionsField(Action<bool> handler)
+        {
+            m_TwoSubscriptionsFieldChanged += handler;
+            handler?.Invoke(m_TwoSubscriptionsField);
+            return new DisposeAction(() => m_TwoSubscriptionsFieldChanged -= handler);
+        }
+
+        public static event Action<bool> TwoSubscriptionsFieldChanged
+        {
+            add
+            {
+                value?.Invoke(m_TwoSubscriptionsField) ;;
+                m_TwoSubscriptionsFieldChanged += value;
+            }
+
+            remove
+            {
+                m_TwoSubscriptionsFieldChanged -= value;
+            }
+        }
+    }
+}
+```
