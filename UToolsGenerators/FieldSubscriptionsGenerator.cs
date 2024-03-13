@@ -98,44 +98,6 @@ namespace UTools.SourceGenerators
         }
 
         /// <summary>
-        /// Creates the event subscription for the given event name and field name
-        /// </summary>
-        /// <param name="eventName"></param>
-        /// <param name="fieldName"></param>
-        /// <param name="fieldType"></param>
-        /// <param name="isStatic"></param>
-        /// <returns></returns>
-        private static EventDeclarationSyntax CreateEventSubscription(TypeSyntax fieldType, string eventName, string fieldName, bool isStatic)
-        {
-            var eventHandlerType = isStatic ? $"Action<{fieldType}>" : $"EventHandler<{fieldType}>";
-            var optionalStatic = isStatic ? SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.StaticKeyword)) : SyntaxFactory.TokenList();
-
-            var addAccessor = SyntaxFactory.AccessorDeclaration(SyntaxKind.AddAccessorDeclaration).WithBody(
-                SyntaxFactory.Block(
-                    SyntaxFactory.ExpressionStatement(SyntaxFactory.InvocationExpression(
-                        SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, SyntaxFactory.ThisExpression(),
-                            SyntaxFactory.IdentifierName(fieldName)),
-                        SyntaxFactory.ArgumentList(SyntaxFactory.SingletonSeparatedList(SyntaxFactory.Argument(SyntaxFactory.IdentifierName("value")))))),
-                    SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(SyntaxKind.AddAssignmentExpression, SyntaxFactory.IdentifierName(eventName),
-                        SyntaxFactory.IdentifierName("value")))
-                )
-            );
-
-            var removeAccessor = SyntaxFactory.AccessorDeclaration(SyntaxKind.RemoveAccessorDeclaration).WithBody(
-                SyntaxFactory.Block(
-                    SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(SyntaxKind.SubtractAssignmentExpression, SyntaxFactory.IdentifierName(eventName),
-                        SyntaxFactory.IdentifierName("value")))
-                )
-            );
-
-            var eventDeclaration = SyntaxFactory.EventDeclaration(SyntaxFactory.ParseTypeName(eventHandlerType), eventName)
-                .AddModifiers(optionalStatic.ToArray())
-                .WithAccessorList(SyntaxFactory.AccessorList(SyntaxFactory.List(new[] { addAccessor, removeAccessor })));
-
-            return eventDeclaration;
-        }
-
-        /// <summary>
         /// Create the disposable subscription method for the given event name and field name
         /// </summary>
         /// <param name="fieldType"></param>
@@ -315,7 +277,7 @@ namespace UTools.SourceGenerators
             if (isStatic)
                 modifiers = modifiers.Add(SyntaxFactory.Token(SyntaxKind.StaticKeyword));
 
-            var eventInvocation = isStatic ? $"{eventCallbackName}?.Invoke(value);" : $"{eventCallbackName}?.Invoke(this, m_TestField)";
+            var eventInvocation = isStatic ? $"{eventCallbackName}?.Invoke(value);" : $"{eventCallbackName}?.Invoke(this, value)";
 
             var getAccessor = SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration).WithBody(
                 SyntaxFactory.Block(SyntaxFactory.SingletonList<StatementSyntax>(
