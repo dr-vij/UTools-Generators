@@ -10,13 +10,6 @@ namespace UTools.SourceGenerators
 {
     public static class ClassDeclarationHelpers
     {
-        static readonly Regex PrefixRemover = new Regex("^[a-z_]+", RegexOptions.Compiled);
-
-        public static string RemovePrefix(this string str)
-        {
-            return PrefixRemover.Replace(str, "");
-        }
-
         /// <summary>
         /// Copies the hierarchy of the example class to the new class. This includes namespaces and parent classes.
         /// </summary>

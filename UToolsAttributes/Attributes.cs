@@ -1,30 +1,40 @@
 using System;
 
-namespace UTools.Attributes
+namespace UTools.SourceGeneratorAttributes
 {
+    #region Subscription Source Generator attributes
+
     /// <summary>
+    /// TODO: implement optional parameters and property name
     /// This attribute is used for SourceGenerator. Add it to a field to make IDisposable subscription for it
     /// </summary>
     [AttributeUsage(validOn: AttributeTargets.Field)]
     public class DisposableSubscription : Attribute
     {
-        public bool InitializeOnStart { get; set; }
+        public bool InitializeOnStart { get; set; } = false;
+        public string PropertyName { get; set; } = string.Empty;
     }
 
     /// <summary>
+    /// TODO: implement optional parameters and property name
     /// This attribute is used for SourceGenerator. Add it to generate automatic subscriptions
     /// </summary>
     [AttributeUsage(AttributeTargets.Field)]
     public class EventSubscription : Attribute
     {
+        public bool InitializeOnStart { get; set; } = false;
         public string PropertyName { get; set; } = string.Empty;
     }
+
+    #endregion
+
+    #region ShaderProvider Source Generator attributes
 
     /// <summary>
     /// This attribute is used for SourceGenerator. Add it to partial static class to make it int properties provider
     /// </summary>
     [AttributeUsage(AttributeTargets.Class)]
-    public class ShaderPropertiesProviderAttribute : Attribute
+    public class ShaderPropertiesProvider : Attribute
     {
     }
 
@@ -32,7 +42,7 @@ namespace UTools.Attributes
     /// This attribute is used for SourceGenerator. Add it to a string constant with shader name to make a shader property for it
     /// </summary>
     [AttributeUsage(AttributeTargets.Field)]
-    public class ShaderAttribute : Attribute
+    public class Shader : Attribute
     {
     }
 
@@ -40,7 +50,9 @@ namespace UTools.Attributes
     /// This attribute is used for SourceGenerator. Add it to a string constant with a shader property name to make a shader property for it
     /// </summary>
     [AttributeUsage(AttributeTargets.Field)]
-    public class ShaderPropertyAttribute : Attribute
+    public class ShaderProperty : Attribute
     {
     }
+
+    #endregion
 }

@@ -1,4 +1,4 @@
-using UTools.Attributes;
+using UTools.SourceGeneratorAttributes;
 using System;
 
 namespace ExampleNamespace.NameSpace

@@ -3,22 +3,20 @@ using System.Collections.Generic;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
+using UTools.SourceGeneratorAttributes;
 
 namespace UTools.SourceGenerators
 {
     [Generator]
     public class ShaderProviderGenerator : ISourceGenerator
     {
-        const string TripleTab = "\t\t\t";
-        const string DoubleTab = "\t\t";
+        private const string ShaderAttribute = nameof(Shader);
+        private const string ShaderPropertiesProviderAttribute = nameof(ShaderPropertiesProvider);
+        private const string ShaderPropertyAttribute = nameof(ShaderProperty);
 
-        private const string ShaderAttribute = "Shader";
-        private const string ShaderPropertiesProviderAttribute = "ShaderPropertiesProvider";
-        private const string ShaderPropertyAttribute = "ShaderProperty";
-
-        private readonly StringBuilder m_DeclarationsBuilder = new ();
-        private readonly StringBuilder m_InitializationBuilder = new ();
-        private readonly StringBuilder m_ClassBuilder = new ();
+        private readonly StringBuilder m_DeclarationsBuilder = new();
+        private readonly StringBuilder m_InitializationBuilder = new();
+        private readonly StringBuilder m_ClassBuilder = new();
 
         public void Execute(GeneratorExecutionContext context)
         {
@@ -43,7 +41,7 @@ namespace UTools.SourceGenerators
                     var intField = stringField.ConstToCamelCase() + "PropertyId";
 
                     //add declaration and initialization for shaders
-                    m_DeclarationsBuilder.AppendLine($"{DoubleTab}public static int {intField} {{get; private set;}}");
+                    m_DeclarationsBuilder.AppendLine($"public static int {intField} {{get; private set;}}");
 
                     m_InitializationBuilder.AppendLine($"{TripleTab}{intField} = Shader.PropertyToID({stringFieldValue});");
                 }
