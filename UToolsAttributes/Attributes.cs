@@ -4,15 +4,21 @@ namespace UTools.SourceGeneratorAttributes
 {
     #region Subscription Source Generator attributes
 
+    public interface IAttributeInterface
+    {
+        public Type? Interface { get; set; }
+    }
+
     /// <summary>
     /// TODO: implement optional parameters and property name
     /// This attribute is used for SourceGenerator. Add it to a field to make IDisposable subscription for it
     /// </summary>
     [AttributeUsage(validOn: AttributeTargets.Field)]
-    public class DisposableSubscription : Attribute
+    public class DisposableSubscription : Attribute, IAttributeInterface
     {
         public bool InitializeOnStart { get; set; } = false;
         public string PropertyName { get; set; } = string.Empty;
+        public Type? Interface { get; set; }
     }
 
     /// <summary>
@@ -24,6 +30,7 @@ namespace UTools.SourceGeneratorAttributes
     {
         public bool InitializeOnStart { get; set; } = false;
         public string PropertyName { get; set; } = string.Empty;
+        public Type? Interface { get; set; }
     }
 
     #endregion

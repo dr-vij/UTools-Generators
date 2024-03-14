@@ -3,9 +3,7 @@
   "profiles": {
     "UToolsGenerators": {
       "commandName": "DebugRoslynComponent",
-      "targetProject": "../SourceGeneratorExamples/SourceGeneratorExamples.csproj",
-      "environmentVariables": {
-      }
+      "targetProject": "../SGExamples/SGExamples.csproj"
     }
   }
 }
