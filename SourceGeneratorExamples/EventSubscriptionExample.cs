@@ -1,5 +1,3 @@
-using UTools.SourceGeneratorAttributes;
-
 namespace ExampleNamespace.NameSpace
 {
     public partial class EventSubscriptionExample

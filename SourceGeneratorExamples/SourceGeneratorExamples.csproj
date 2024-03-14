@@ -5,11 +5,12 @@
         <TargetFramework>net8.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <LangVersion>latest</LangVersion>
     </PropertyGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\UToolsAttributes\UToolsAttributes.csproj" />
-      <ProjectReference Include="..\UToolsGenerators\UToolsGenerators.csproj" />
+      <ProjectReference Include="..\UToolsGenerators\UToolsGenerators.csproj"  OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     </ItemGroup>
 
 </Project>

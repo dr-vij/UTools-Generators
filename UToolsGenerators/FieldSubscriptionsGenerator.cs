@@ -70,16 +70,12 @@ namespace UTools.SourceGenerators
 
                     if (fieldNode.HasAttribute(disposableSubscriptionAttribute))
                     {
-                        TryGetAttributeParameter<DisposableSubscription>(compilation, fieldNode);
-
                         var subscriptionMethod = CreateDisposableSubscriptionMethod(fieldType, subscriptionMethodName, fieldName, privateEventName, isStatic);
                         m_Members.Add(subscriptionMethod);
                     }
 
                     if (fieldNode.HasAttribute(eventSubscriptionAttribute))
                     {
-                        TryGetAttributeParameter<EventSubscription>(compilation, fieldNode);
-
                         var subscriptionEvent = CreateSubscriptionEvent(fieldType, subscriptionEventName, fieldName, privateEventName, isStatic);
                         m_Members.Add(subscriptionEvent);
                     }
@@ -98,38 +94,6 @@ namespace UTools.SourceGenerators
                     .NormalizeWhitespace()
                     .ToFullString();
                 context.AddSource(className + $"Gen{counter++}.cs", SourceText.From(code, Encoding.UTF8));
-            }
-        }
-
-        private void TryGetAttributeParameter<T>(Compilation compilation, FieldDeclarationSyntax fieldNode) where T : Attribute
-        {
-            var model = compilation.GetSemanticModel(fieldNode.SyntaxTree);
-            var subscriptionAttribute = fieldNode.AttributeLists
-                .SelectMany(a => a.Attributes)
-                .FirstOrDefault(attr =>
-                {
-                    var symbol = model.GetSymbolInfo(attr).Symbol;
-                    var name = symbol?.ContainingType?.Name;
-                    return name == nameof(T);
-                });
-
-            if (subscriptionAttribute != null)
-            {
-                var interfaceArgument = subscriptionAttribute.ArgumentList?.Arguments.FirstOrDefault(arg =>
-                    arg.NameEquals?.Name.Identifier.ValueText == nameof(IAttributeInterface.Interface));
-
-                if (interfaceArgument is { Expression: TypeOfExpressionSyntax typeOfExpression })
-                {
-                    var typeInfo = model.GetTypeInfo(typeOfExpression.Type);
-                    var interfaceTypeSymbol = model.GetTypeInfo(typeOfExpression.Type).Type;
-
-                    if (interfaceTypeSymbol != null)
-                    {
-                        // Now that you have the interface type symbol, you can generate the partial interface
-                        // Here you would add the code to generate the partial interface based on the interfaceTypeSymbol
-                        // GeneratePartialInterface(interfaceTypeSymbol, context);
-                    }
-                }
             }
         }
 
