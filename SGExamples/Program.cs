@@ -1,4 +1,6 @@
-﻿namespace SGExamples;
+﻿using System;
+
+namespace SGExamples;
 
 class Program
 {
