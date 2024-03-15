@@ -31,8 +31,8 @@ namespace UTools.SourceGenerators
         public void Execute(GeneratorExecutionContext context)
         {
             var compilation = context.Compilation;
-            var disposableSubscriptionAttribute = nameof(DisposableSubscription);
-            var eventSubscriptionAttribute = nameof(EventSubscription);
+            var disposableSubscriptionAttribute = nameof(DisposableSubscriptionAttribute);
+            var eventSubscriptionAttribute = nameof(EventSubscriptionAttribute);
 
             var fieldAttributes = new[] { disposableSubscriptionAttribute, eventSubscriptionAttribute };
 
@@ -94,6 +94,31 @@ namespace UTools.SourceGenerators
                     .NormalizeWhitespace()
                     .ToFullString();
                 context.AddSource(className + $"Gen{counter++}.cs", SourceText.From(code, Encoding.UTF8));
+            }
+        }
+
+        private void TryGetAttributeParameter(Compilation compilation, FieldDeclarationSyntax fieldNode, string attributeName)
+        {
+            fieldNode.HasAttribute(attributeName, out var subscriptionAttribute);
+            var model = compilation.GetSemanticModel(fieldNode.SyntaxTree);
+
+            if (subscriptionAttribute != null)
+            {
+                var interfaceArgument = subscriptionAttribute.ArgumentList?.Arguments.FirstOrDefault(arg =>
+                    arg.NameEquals?.Name.Identifier.ValueText == nameof(IOutputInterfaceAttrParameter.OutputInterface));
+
+                if (interfaceArgument is { Expression: TypeOfExpressionSyntax typeOfExpression })
+                {
+                    var typeInfo = model.GetTypeInfo(typeOfExpression.Type);
+                    var interfaceTypeSymbol = model.GetTypeInfo(typeOfExpression.Type).Type;
+
+                    if (interfaceTypeSymbol != null)
+                    {
+                        // Now that you have the interface type symbol, you can generate the partial interface
+                        // Here you would add the code to generate the partial interface based on the interfaceTypeSymbol
+                        // GeneratePartialInterface(interfaceTypeSymbol, context);
+                    }
+                }
             }
         }
 
@@ -163,6 +188,7 @@ namespace UTools.SourceGenerators
 
             return methodDeclaration;
         }
+
 
         /// <summary>
         ///  Create the subscription event for the given event name and field name

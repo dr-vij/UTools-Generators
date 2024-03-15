@@ -10,6 +10,7 @@ namespace UTools.SourceGenerators
     public static class SourceGeneratorHelpers
     {
         private static readonly Regex PrefixRemover = new Regex("^[a-z_]+", RegexOptions.Compiled);
+        private const string AttributeSuffix = "Attribute";
 
         public static string RemovePrefix(this string str)
         {
@@ -33,17 +34,51 @@ namespace UTools.SourceGenerators
             return string.Concat(words);
         }
 
-        public static bool HasAttribute(this MemberDeclarationSyntax fieldSyntax, string attribute)
-        {
-            return fieldSyntax.AttributeLists.HasAttribute(attribute);
-        }
 
-        private static bool HasAttribute(this SyntaxList<AttributeListSyntax> attributeListSyntax, string attribute)
+
+        /// <summary>
+        /// Converts a given attribute name to its short and long forms.
+        /// </summary>
+        /// <param name="attribute">The attribute name to convert.</param>
+        /// <returns>A tuple containing the short and long forms of the attribute name. The short form is the attribute name without the "Attribute" suffix, and the long form is the attribute name with the "Attribute" suffix.</returns>
+        private static (string shortName, string longName) StringToAttributeNames(string attribute)
         {
-            var longAttribute = attribute + "Attribute";
-            return attributeListSyntax.Any(list =>
+            string longAttribute;
+
+            if (attribute.EndsWith(AttributeSuffix))
+            {
+                longAttribute = attribute;
+                attribute = attribute.Remove(attribute.Length - 9);
+            }
+            else
+            {
+                longAttribute = attribute + AttributeSuffix;
+            }
+
+            return (attribute, longAttribute);
+        }
+        
+        public static bool HasAttribute(this MemberDeclarationSyntax attributeListSyntax, string attribute) =>
+            HasAttribute(attributeListSyntax, attribute, out _);
+
+        public static bool HasAttribute(this MemberDeclarationSyntax attributeListSyntax, string attribute, out AttributeSyntax result)
+        {
+            string longAttribute;
+            result = null;
+            (attribute, longAttribute) = StringToAttributeNames(attribute);
+
+            AttributeSyntax searchResult = null;
+            var isSuccess = attributeListSyntax.AttributeLists.Any(list =>
                 list.Attributes.Any(attr =>
-                    attr.Name.ToString() == attribute || attr.Name.ToString() == longAttribute));
+                {
+                    var name = attr.Name.ToString();
+                    var found = name == attribute || name == longAttribute;
+                    if (found)
+                        searchResult = attr;
+                    return found;
+                }));
+            result = searchResult;
+            return isSuccess;
         }
 
         //implementation from https://andrewlock.net/creating-a-source-generator-part-5-finding-a-type-declarations-namespace-and-type-hierarchy/

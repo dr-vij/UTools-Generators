@@ -12,9 +12,9 @@ namespace UTools.SourceGenerators
     [Generator]
     public class ShaderProviderGenerator : ISourceGenerator
     {
-        private const string ShaderAttribute = nameof(ShaderName);
-        private const string ShaderPropertiesProviderAttribute = nameof(ShaderPropertiesProvider);
-        private const string ShaderPropertyAttribute = nameof(ShaderProperty);
+        private const string ShaderAttribute = nameof(ShaderNameAttribute);
+        private const string ShaderPropertiesProviderAttribute = nameof(ShaderPropertiesProviderAttribute);
+        private const string ShaderPropertyAttribute = nameof(ShaderPropertyAttribute);
 
         private readonly List<MemberDeclarationSyntax> m_Members = new();
         private readonly List<MemberDeclarationSyntax> m_Declarations = new();
