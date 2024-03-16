@@ -10,32 +10,6 @@ using UTools.SourceGeneratorAttributes;
 
 namespace UTools.SourceGenerators
 {
-    public class InterfaceBuilderContainer
-    {
-        public string Key { get; }
-        public ITypeSymbol ReferenceInterface { get; set; }
-
-        public List<MemberDeclarationSyntax> Members { get; } = new();
-
-        public InterfaceBuilderContainer(string key, ITypeSymbol referenceInterface)
-        {
-            Key = key;
-            ReferenceInterface = referenceInterface;
-        }
-
-        public MemberDeclarationSyntax ToSyntaxNode()
-        {
-            var interfaceNode = SyntaxFactory.InterfaceDeclaration(ReferenceInterface.Name)
-                .WithModifiers(SyntaxFactory.TokenList(
-                    SyntaxFactory.Token(SyntaxKind.PublicKeyword),
-                    SyntaxFactory.Token(SyntaxKind.PartialKeyword)))
-                .WithMembers(SyntaxFactory.List(Members));
-
-            ReferenceInterface.TryGetAnyDeclaration(out var declaration);
-            return declaration.CopyHierarchyTo(interfaceNode);
-        }
-    }
-
     [Generator]
     public class FieldSubscriptionsGenerator : ISourceGenerator
     {
@@ -50,7 +24,7 @@ namespace UTools.SourceGenerators
         private UsingDirectiveSyntax m_UToolsUsing = SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("UTools"));
         private UsingDirectiveSyntax m_SystemUsing = SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System"));
 
-        private Dictionary<string, InterfaceBuilderContainer> m_InterfaceBuilders = new();
+        private readonly Dictionary<string, InterfaceBuilderContainer> m_InterfaceBuilders = new();
 
         public void Initialize(GeneratorInitializationContext context)
         {
@@ -128,12 +102,15 @@ namespace UTools.SourceGenerators
                 var compilationUnit = SyntaxFactory.CompilationUnit()
                     .AddUsings(classNode.GetUsingArr())
                     .AddUsings(m_ExtraUsing.ToArray());
-
-                var classWithHierarchy = classNode.CopyHierarchyTo(newClass);
+                
                 var interfaces = m_InterfaceBuilders.Values.Select(builder => builder.ToSyntaxNode()).ToArray();
+                foreach (var interfaceBuilder in m_InterfaceBuilders.Values)
+                    newClass = newClass.AddBaseListTypes(interfaceBuilder.ToSimpleBaseTypeSyntax());
+                
+                var classWithHierarchy = classNode.CopyHierarchyTo(newClass);
                 compilationUnit = compilationUnit
-                    .AddMembers(classWithHierarchy)
-                    .AddMembers(interfaces);
+                    .AddMembers(interfaces)
+                    .AddMembers(classWithHierarchy);
 
                 var code = compilationUnit
                     .NormalizeWhitespace()

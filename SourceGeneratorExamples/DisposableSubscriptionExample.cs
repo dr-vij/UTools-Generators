@@ -9,9 +9,9 @@ namespace ExampleNamespace.NameSpace
     public partial class DisposableSubscriptionExample
     {
         [DisposableSubscription(OutputInterface = typeof(ITestInterface))]
-        private static bool m_TestFieldDisposable;
+        private bool m_TestFieldDisposable;
 
         [DisposableSubscription(OutputInterface = typeof(ITestInterface))]
-        private static bool m_TestField2;
+        private bool m_TestField2;
     }
 }
