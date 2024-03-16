@@ -70,6 +70,14 @@ namespace UTools.SourceGenerators
 
                     if (fieldNode.HasAttribute(disposableSubscriptionAttribute))
                     {
+                        if (TryGetTypeFromInterfaceField(compilation, fieldNode, disposableSubscriptionAttribute, out var interfaceType))
+                        {
+                            var nameSpaceSymbol = interfaceType.ContainingNamespace;
+                            var visibility = interfaceType.DeclaredAccessibility;
+                            var interfaceName = interfaceType.Name;
+                            var isPartial = interfaceType.IsTypeDeclaredPartial();
+                        }
+
                         var subscriptionMethod = CreateDisposableSubscriptionMethod(fieldType, subscriptionMethodName, fieldName, privateEventName, isStatic);
                         m_Members.Add(subscriptionMethod);
                     }
@@ -97,29 +105,41 @@ namespace UTools.SourceGenerators
             }
         }
 
-        private void TryGetAttributeParameter(Compilation compilation, FieldDeclarationSyntax fieldNode, string attributeName)
+        /// <summary>
+        /// Attribute interface has a "typeof" expression.
+        /// we take interface from it to generate partial interface
+        /// in future.
+        /// </summary>
+        /// <param name="compilation"></param>
+        /// <param name="fieldNode"></param>
+        /// <param name="attributeName"></param>
+        private bool TryGetTypeFromInterfaceField(Compilation compilation, FieldDeclarationSyntax fieldNode, string attributeName, out ITypeSymbol result)
         {
+            result = null;
             fieldNode.HasAttribute(attributeName, out var subscriptionAttribute);
             var model = compilation.GetSemanticModel(fieldNode.SyntaxTree);
 
             if (subscriptionAttribute != null)
             {
+                //Find property with typeof expression and given name
                 var interfaceArgument = subscriptionAttribute.ArgumentList?.Arguments.FirstOrDefault(arg =>
                     arg.NameEquals?.Name.Identifier.ValueText == nameof(IOutputInterfaceAttrParameter.OutputInterface));
 
                 if (interfaceArgument is { Expression: TypeOfExpressionSyntax typeOfExpression })
                 {
-                    var typeInfo = model.GetTypeInfo(typeOfExpression.Type);
                     var interfaceTypeSymbol = model.GetTypeInfo(typeOfExpression.Type).Type;
-
                     if (interfaceTypeSymbol != null)
                     {
-                        // Now that you have the interface type symbol, you can generate the partial interface
-                        // Here you would add the code to generate the partial interface based on the interfaceTypeSymbol
-                        // GeneratePartialInterface(interfaceTypeSymbol, context);
+                        if (interfaceTypeSymbol.TypeKind != TypeKind.Interface)
+                            throw new InvalidOperationException("OutputInterface must be an interface");
+
+                        result = interfaceTypeSymbol;
+                        return true;
                     }
                 }
             }
+
+            return false;
         }
 
         /// <summary>

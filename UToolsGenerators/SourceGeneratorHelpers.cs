@@ -34,7 +34,50 @@ namespace UTools.SourceGenerators
             return string.Concat(words);
         }
 
+        /// <summary>
+        /// Tries to get any declaration of the given type symbol.
+        /// </summary>
+        /// <param name="typeSymbol">The type symbol to check.</param>
+        /// <param name="result">Out parameter that contains the base type declaration syntax if found.</param>
+        /// <returns>True if a declaration was found, false otherwise.</returns>
+        public static bool TryGetAnyDeclaration(this ITypeSymbol typeSymbol, out BaseTypeDeclarationSyntax result)
+        {
+            foreach (var syntaxReference in typeSymbol.DeclaringSyntaxReferences)
+            {
+                if (syntaxReference.GetSyntax() is BaseTypeDeclarationSyntax syntaxNode)
+                {
+                    result = syntaxNode;
+                    return true;
+                }
+            }
 
+            result = null;
+            return false;
+        }
+
+        /// <summary>
+        /// Checks if a given type symbol is declared as partial.
+        /// </summary>
+        /// <param name="typeSymbol">The type symbol to check.</param>
+        /// <returns>True if the type symbol is declared as partial, false otherwise.</returns>
+        public static bool IsTypeDeclaredPartial(this ITypeSymbol typeSymbol)
+        {
+            if (typeSymbol.TryGetAnyDeclaration(out var syntaxNode))
+            {
+                if (syntaxNode.Modifiers.Any(SyntaxKind.PartialKeyword))
+                    return true;
+            }
+            return false;
+        }
+
+        public static InterfaceDeclarationSyntax BuildInterface(string name, MemberDeclarationSyntax[] members
+        )
+        {
+            var interfaceDeclaration = SyntaxFactory.InterfaceDeclaration(name);
+            interfaceDeclaration = interfaceDeclaration.AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword));
+            interfaceDeclaration = interfaceDeclaration.AddMembers(members);
+            return interfaceDeclaration;
+        }
 
         /// <summary>
         /// Converts a given attribute name to its short and long forms.
@@ -57,7 +100,7 @@ namespace UTools.SourceGenerators
 
             return (attribute, longAttribute);
         }
-        
+
         public static bool HasAttribute(this MemberDeclarationSyntax attributeListSyntax, string attribute) =>
             HasAttribute(attributeListSyntax, attribute, out _);
 

@@ -13,13 +13,13 @@ namespace UTools.SourceGenerators
         /// <summary>
         /// Copies the hierarchy of the example class to the new class. This includes namespaces and parent classes.
         /// </summary>
-        /// <param name="exampleHierarchy">The class whose hierarchy is to be copied.</param>
-        /// <param name="newClass">The class to which the hierarchy is to be copied.</param>
+        /// <param name="referenceHierarchy">The class whose hierarchy is to be copied.</param>
+        /// <param name="newMember">The class to which the hierarchy is to be copied.</param>
         /// <returns>The new class with the copied hierarchy.</returns>
-        public static MemberDeclarationSyntax CopyHierarchyTo(this ClassDeclarationSyntax exampleHierarchy, ClassDeclarationSyntax newClass)
+        public static MemberDeclarationSyntax CopyHierarchyTo(this TypeDeclarationSyntax referenceHierarchy, TypeDeclarationSyntax newMember)
         {
-            var ancestors = exampleHierarchy.Ancestors();
-            MemberDeclarationSyntax result = newClass;
+            var ancestors = referenceHierarchy.Ancestors();
+            MemberDeclarationSyntax result = newMember;
             foreach (var ancestor in ancestors)
             {
                 switch (ancestor)

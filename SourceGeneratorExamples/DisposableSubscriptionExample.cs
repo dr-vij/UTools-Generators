@@ -2,7 +2,7 @@ using UTools.SourceGeneratorAttributes;
 
 namespace ExampleNamespace.NameSpace
 {
-    public partial interface ITestInterface
+    public interface ITestInterface
     {
     }
     
@@ -12,7 +12,7 @@ namespace ExampleNamespace.NameSpace
     
     public partial class DisposableSubscriptionExample
     {
-        [DisposableSubscription (OutputInterface = typeof(TestClass))] 
+        [DisposableSubscription (OutputInterface = typeof(ITestInterface))] 
         private static bool m_TestFieldDisposable;
     }
 }
