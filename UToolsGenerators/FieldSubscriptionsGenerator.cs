@@ -10,6 +10,32 @@ using UTools.SourceGeneratorAttributes;
 
 namespace UTools.SourceGenerators
 {
+    public class InterfaceBuilderContainer
+    {
+        public string Key { get; }
+        public ITypeSymbol ReferenceInterface { get; set; }
+
+        public List<MemberDeclarationSyntax> Members { get; } = new();
+
+        public InterfaceBuilderContainer(string key, ITypeSymbol referenceInterface)
+        {
+            Key = key;
+            ReferenceInterface = referenceInterface;
+        }
+
+        public MemberDeclarationSyntax ToSyntaxNode()
+        {
+            var interfaceNode = SyntaxFactory.InterfaceDeclaration(ReferenceInterface.Name)
+                .WithModifiers(SyntaxFactory.TokenList(
+                    SyntaxFactory.Token(SyntaxKind.PublicKeyword),
+                    SyntaxFactory.Token(SyntaxKind.PartialKeyword)))
+                .WithMembers(SyntaxFactory.List(Members));
+
+            ReferenceInterface.TryGetAnyDeclaration(out var declaration);
+            return declaration.CopyHierarchyTo(interfaceNode);
+        }
+    }
+
     [Generator]
     public class FieldSubscriptionsGenerator : ISourceGenerator
     {
@@ -23,6 +49,8 @@ namespace UTools.SourceGenerators
 
         private UsingDirectiveSyntax m_UToolsUsing = SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("UTools"));
         private UsingDirectiveSyntax m_SystemUsing = SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System"));
+
+        private Dictionary<string, InterfaceBuilderContainer> m_InterfaceBuilders = new();
 
         public void Initialize(GeneratorInitializationContext context)
         {
@@ -41,6 +69,8 @@ namespace UTools.SourceGenerators
 
             foreach (var classNode in classNodes)
             {
+                m_InterfaceBuilders.Clear();
+
                 var className = classNode.Identifier.Text;
                 var fieldNodes = classNode.Members
                     .OfType<FieldDeclarationSyntax>()
@@ -70,12 +100,16 @@ namespace UTools.SourceGenerators
 
                     if (fieldNode.HasAttribute(disposableSubscriptionAttribute))
                     {
-                        if (TryGetTypeFromInterfaceField(compilation, fieldNode, disposableSubscriptionAttribute, out var interfaceType))
+                        if (TryGetTypeFromAttributeInterfaceProperty(compilation, fieldNode, disposableSubscriptionAttribute, out var interfaceType))
                         {
-                            var nameSpaceSymbol = interfaceType.ContainingNamespace;
-                            var visibility = interfaceType.DeclaredAccessibility;
-                            var interfaceName = interfaceType.Name;
-                            var isPartial = interfaceType.IsTypeDeclaredPartial();
+                            var key = interfaceType.Name + interfaceType.ContainingNamespace;
+                            if (!m_InterfaceBuilders.TryGetValue(key, out var interfaceBuilder))
+                            {
+                                interfaceBuilder = new InterfaceBuilderContainer(key, interfaceType);
+                                m_InterfaceBuilders.Add(key, interfaceBuilder);
+                            }
+
+                            interfaceBuilder.Members.Add(CreateDefaultProperty(fieldType, propertyName, false));
                         }
 
                         var subscriptionMethod = CreateDisposableSubscriptionMethod(fieldType, subscriptionMethodName, fieldName, privateEventName, isStatic);
@@ -96,7 +130,10 @@ namespace UTools.SourceGenerators
                     .AddUsings(m_ExtraUsing.ToArray());
 
                 var classWithHierarchy = classNode.CopyHierarchyTo(newClass);
-                compilationUnit = compilationUnit.AddMembers(classWithHierarchy);
+                var interfaces = m_InterfaceBuilders.Values.Select(builder => builder.ToSyntaxNode()).ToArray();
+                compilationUnit = compilationUnit
+                    .AddMembers(classWithHierarchy)
+                    .AddMembers(interfaces);
 
                 var code = compilationUnit
                     .NormalizeWhitespace()
@@ -113,7 +150,7 @@ namespace UTools.SourceGenerators
         /// <param name="compilation"></param>
         /// <param name="fieldNode"></param>
         /// <param name="attributeName"></param>
-        private bool TryGetTypeFromInterfaceField(Compilation compilation, FieldDeclarationSyntax fieldNode, string attributeName, out ITypeSymbol result)
+        private bool TryGetTypeFromAttributeInterfaceProperty(Compilation compilation, FieldDeclarationSyntax fieldNode, string attributeName, out ITypeSymbol result)
         {
             result = null;
             fieldNode.HasAttribute(attributeName, out var subscriptionAttribute);
@@ -298,6 +335,32 @@ namespace UTools.SourceGenerators
                     SyntaxFactory.ParameterList(
                         SyntaxFactory.SingletonSeparatedList(SyntaxFactory.Parameter(SyntaxFactory.Identifier("newValue")).WithType(parameterType))))
                 .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
+        }
+
+        /// <summary>
+        /// Creates a property with simple get and set accessors.
+        /// </summary>
+        /// <param name="fieldType">The type of the property.</param>
+        /// <param name="propertyName">The name of the property.</param>
+        /// <param name="isStatic">Determines whether the property should be static.</param>
+        /// <returns>A PropertyDeclarationSyntax representing the created property.</returns>
+        private PropertyDeclarationSyntax CreateDefaultProperty(TypeSyntax fieldType, string propertyName, bool isStatic)
+        {
+            var modifiers = SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword));
+            if (isStatic)
+                modifiers = modifiers.Add(SyntaxFactory.Token(SyntaxKind.StaticKeyword));
+
+            var getAccessor = SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
+                .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
+
+            var setAccessor = SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration)
+                .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
+
+            var propertyDeclaration = SyntaxFactory.PropertyDeclaration(fieldType, propertyName)
+                .WithModifiers(modifiers)
+                .WithAccessorList(SyntaxFactory.AccessorList(SyntaxFactory.List(new[] { getAccessor, setAccessor })));
+
+            return propertyDeclaration;
         }
 
         /// <summary>

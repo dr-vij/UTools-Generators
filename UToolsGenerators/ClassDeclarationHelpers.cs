@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -16,7 +15,7 @@ namespace UTools.SourceGenerators
         /// <param name="referenceHierarchy">The class whose hierarchy is to be copied.</param>
         /// <param name="newMember">The class to which the hierarchy is to be copied.</param>
         /// <returns>The new class with the copied hierarchy.</returns>
-        public static MemberDeclarationSyntax CopyHierarchyTo(this TypeDeclarationSyntax referenceHierarchy, TypeDeclarationSyntax newMember)
+        public static MemberDeclarationSyntax CopyHierarchyTo(this BaseTypeDeclarationSyntax referenceHierarchy, BaseTypeDeclarationSyntax newMember)
         {
             var ancestors = referenceHierarchy.Ancestors();
             MemberDeclarationSyntax result = newMember;
@@ -73,21 +72,21 @@ namespace UTools.SourceGenerators
         /// <summary>
         /// Retrieves the using directives of the given class declaration.
         /// </summary>
-        /// <param name="classDeclaration">The class declaration from which to retrieve the using directives.</param>
+        /// <param name="syntaxNode">The class declaration from which to retrieve the using directives.</param>
         /// <returns>An array of using directive syntaxes if any exist, otherwise an empty array.</returns>
-        public static UsingDirectiveSyntax[] GetUsingArr(this ClassDeclarationSyntax classDeclaration)
+        public static UsingDirectiveSyntax[] GetUsingArr(this SyntaxNode syntaxNode)
         {
-            return classDeclaration.GetUsing()?.ToArray() ?? Array.Empty<UsingDirectiveSyntax>();
+            return syntaxNode.GetUsing()?.ToArray() ?? Array.Empty<UsingDirectiveSyntax>();
         }
 
         /// <summary>
         /// Retrieves the using directives of the given class declaration.
         /// </summary>
-        /// <param name="classDeclaration">The class declaration from which to retrieve the using directives.</param>
+        /// <param name="syntaxNode">The class declaration from which to retrieve the using directives.</param>
         /// <returns>A syntax list of using directive syntaxes if any exist, otherwise null.</returns>
-        public static SyntaxList<UsingDirectiveSyntax>? GetUsing(this ClassDeclarationSyntax classDeclaration)
+        public static SyntaxList<UsingDirectiveSyntax>? GetUsing(this SyntaxNode syntaxNode)
         {
-            return classDeclaration.AncestorsAndSelf()
+            return syntaxNode.AncestorsAndSelf()
                 .OfType<CompilationUnitSyntax>()
                 .FirstOrDefault()?
                 .Usings;
