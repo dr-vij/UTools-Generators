@@ -1,6 +1,6 @@
 # Interface output
 
-You can use OutputInterface parameter to export generated subscriptions and properties to the interface. Static fields and
+You can use **OutputInterface** parameter to export generated subscriptions and properties to the interface. Static fields and
 classes are not supported.
 
 To do this:

@@ -7,7 +7,8 @@
                  start-page="MainPage.md">
 
     <toc-element topic="MainPage.md"/>
-    <toc-element topic="EventSubscription.md"/>
     <toc-element topic="DisposableSubscription.md"/>
+    <toc-element topic="EventSubscription.md"/>
+    <toc-element topic="Subscription-Combinations.md"/>
     <toc-element topic="Interface-output.md"/>
 </instance-profile>
