@@ -1,0 +1,60 @@
+<!DOCTYPE html SYSTEM "about:legacy-compat">
+<html lang="en-US" data-preset="contrast" data-primary-color="#307FFF"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta charset="UTF-8"><meta name="robots" content="noindex"><meta name="built-on" content="2024-03-17T19:45:48.717278"><title>DisposableSubscription | Help Instance</title><script type="application/json" id="virtual-toc-data">[]</script><script type="application/json" id="topic-shortcuts"></script><link href="https://resources.jetbrains.com/writerside/apidoc/6.6.6-b224/app.css" rel="stylesheet"><link rel="manifest" href="site.webmanifest"><meta name="msapplication-TileColor" content="#000000"><link rel="apple-touch-icon" sizes="180x180" href="https://jetbrains.com/apple-touch-icon.png"><link rel="icon" type="image/png" sizes="32x32" href="https://jetbrains.com/favicon-32x32.png"><link rel="icon" type="image/png" sizes="16x16" href="https://jetbrains.com/favicon-16x16.png"><meta name="msapplication-TileImage" content="https://resources.jetbrains.com/storage/ui/favicons/mstile-144x144.png"><meta name="msapplication-square70x70logo" content="https://resources.jetbrains.com/storage/ui/favicons/mstile-70x70.png"><meta name="msapplication-square150x150logo" content="https://resources.jetbrains.com/storage/ui/favicons/mstile-150x150.png"><meta name="msapplication-wide310x150logo" content="https://resources.jetbrains.com/storage/ui/favicons/mstile-310x150.png"><meta name="msapplication-square310x310logo" content="https://resources.jetbrains.com/storage/ui/favicons/mstile-310x310.png"><meta name="image" content=""><!-- Open Graph --><meta property="og:title" content="DisposableSubscription | Help Instance"><meta property="og:description" content=""><meta property="og:image" content=""><meta property="og:site_name" content="Help Instance Help"><meta property="og:type" content="website"><meta property="og:locale" content="en_US"><meta property="og:url" content="writerside-documentation/disposablesubscription.html"><!-- End Open Graph --><!-- Twitter Card --><meta name="twitter:card" content="summary_large_image"><meta name="twitter:site" content=""><meta name="twitter:title" content="DisposableSubscription | Help Instance"><meta name="twitter:description" content=""><meta name="twitter:creator" content=""><meta name="twitter:image:src" content=""><!-- End Twitter Card --><!-- Schema.org WebPage --><script type="application/ld+json">{
+    "@context": "http://schema.org",
+    "@type": "WebPage",
+    "@id": "writerside-documentation/disposablesubscription.html#webpage",
+    "url": "writerside-documentation/disposablesubscription.html",
+    "name": "DisposableSubscription | Help Instance",
+    "description": "",
+    "image": "",
+    "inLanguage":"en-US"
+}</script><!-- End Schema.org --><!-- Schema.org WebSite --><script type="application/ld+json">{
+    "@type": "WebSite",
+    "@id": "writerside-documentation/#website",
+    "url": "writerside-documentation/",
+    "name": "Help Instance Help"
+}</script><!-- End Schema.org --></head><body data-id="DisposableSubscription" data-main-title="DisposableSubscription" data-article-props="{&quot;seeAlsoStyle&quot;:&quot;links&quot;}" data-template="article" data-breadcrumbs=""><div class="wrapper"><main class="panel _main"><header class="panel__header"><div class="container"><h3>Help Instance  Help</h3><div class="panel-trigger"></div></div></header><section class="panel__content"><div class="container"><article class="article" data-shortcut-switcher="inactive"><h1 data-toc="DisposableSubscription" id="DisposableSubscription.md">DisposableSubscription</h1><aside class="prompt" data-type="note" data-title="" id="nqr67h_237"><p id="nqr67h_239">You have to use my U-Tools library that contains the DisposeAction class to use this feature.</p><p id="nqr67h_241">You can find it here: <a href="https://github.com/dr-vij/UTools" id="nqr67h_243" data-external="true" rel="noopener noreferrer">UTools</a></p></aside><p id="nqr67h_245">The <span class="control" id="nqr67h_247">DisposableSubscription</span> attribute is used to create a subscription method for a field in a class. This method returns an IDisposable which, when disposed, removes the subscription. This allows for easy management of event subscriptions.</p><p id="nqr67h_249">The <span class="control" id="nqr67h_251">DisposableSubscription</span> attribute also generates a property for the field it's applied to. This property's getter returns the current value of the field, and its setter updates the field's value and triggers the event if the new value is different from the old one.</p><p id="nqr67h_253"><span class="control" id="nqr67h_255">DisposableSubscription</span> attribute example usage:</p><div class="code-block" data-lang="csharp">
+namespace ExampleNamespace.NameSpace
+{
+    public partial class DisposableSubscriptionExample
+    {
+        [DisposableSubscription] private static bool m_TestFieldDisposable;
+    }
+}
+</div><p id="nqr67h_259">The Subscription method is IDisposable, disposing it will remove the subscription. Generated code:</p><div class="code-block" data-lang="csharp">
+using UTools;
+using System;
+
+namespace ExampleNamespace.NameSpace
+{
+    public partial class DisposableSubscriptionExample
+    {
+        static partial void OnTestFieldDisposableChange(bool newValue);
+        static event Action&lt;bool&gt; m_TestFieldDisposableChanged;
+        public static bool TestFieldDisposable
+        {
+            get
+            {
+                return m_TestFieldDisposable;
+            }
+
+            set
+            {
+                if (m_TestFieldDisposable != value)
+                {
+                    m_TestFieldDisposable = value;
+                    m_TestFieldDisposableChanged?.Invoke(value) ;;
+                    OnTestFieldDisposableChange(value);
+                }
+            }
+        }
+
+        public static IDisposable SubscribeToTestFieldDisposable(Action&lt;bool&gt; handler)
+        {
+            m_TestFieldDisposableChanged += handler;
+            handler?.Invoke(m_TestFieldDisposable);
+            return new DisposeAction(() =&gt; m_TestFieldDisposableChanged -= handler);
+        }
+    }
+}
+</div><div class="last-modified">Last modified: 17 March 2024</div><div data-feedback-placeholder="true"></div><div class="navigation-links _bottom"><a href="mainpage.html" class="navigation-links__prev">UTools-SourceGenerators</a><a href="eventsubscription.html" class="navigation-links__next">EventSubscription</a></div></article><div id="disqus_thread"></div></div></section></main></div><script src="https://resources.jetbrains.com/writerside/apidoc/6.6.6-b224/app.js"></script></body></html>

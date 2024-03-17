@@ -1,6 +1,14 @@
 # EventSubscription
 
-EventSubscription example usage:
+The **EventSubscription** attribute is used to create an event for a field in a class. 
+This event is triggered when the field's value changes. 
+This allows for easy management of event notifications. 
+
+The **EventSubscription** attribute also generates a property for the field it's applied to. 
+This property's getter returns the current value of the field, 
+and its setter updates the field's value and triggers the event if the new value is different from the old one.
+
+**EventSubscription** attribute example usage:
 ```C#
 namespace ExampleNamespace.NameSpace
 {

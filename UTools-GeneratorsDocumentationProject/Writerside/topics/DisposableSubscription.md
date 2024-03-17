@@ -10,7 +10,14 @@
     </p>
 </note>
 
-DisposableSubscription attribute example usage:
+The **DisposableSubscription** attribute is used to create a subscription method for a field in a class. 
+This method returns an IDisposable which, when disposed, removes the subscription. 
+This allows for easy management of event subscriptions. 
+
+The **DisposableSubscription** attribute also generates a property for the field it's applied to. 
+This property's getter returns the current value of the field, and its setter updates the field's value and triggers the event if the new value is different from the old one.
+
+**DisposableSubscription** attribute example usage:
 ```C#
 namespace ExampleNamespace.NameSpace
 {
