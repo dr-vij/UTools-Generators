@@ -4,16 +4,26 @@ namespace UTools.SourceGeneratorAttributes
 {
     #region Subscription Source Generator attributes
 
+    /// <summary>
+    /// This attribute parameter is used for SourceGenerator.
+    /// The attributes with it would export their subscription to the specified interface
+    /// </summary>
     public interface IOutputInterfaceAttrParameter
     {
         public Type? OutputInterface { get; set; }
     }
 
+    /// <summary>
+    /// TODO: implement optional parameters
+    /// </summary>
     public interface IPropertyNameAttrParameter
     {
         public string PropertyName { get; set; }
     }
 
+    /// <summary>
+    /// TODO: implement optional parameters
+    /// </summary>
     public interface IInitializeOnStartAttrParameter
     {
         public bool InitializeOnStart { get; set; }
@@ -24,10 +34,8 @@ namespace UTools.SourceGeneratorAttributes
     /// This attribute is used for SourceGenerator. Add it to a field to make IDisposable subscription for it
     /// </summary>
     [AttributeUsage(validOn: AttributeTargets.Field)]
-    public class DisposableSubscriptionAttribute : Attribute, IOutputInterfaceAttrParameter, IPropertyNameAttrParameter, IInitializeOnStartAttrParameter
+    public class DisposableSubscriptionAttribute : Attribute, IOutputInterfaceAttrParameter
     {
-        public bool InitializeOnStart { get; set; } = false;
-        public string PropertyName { get; set; } = string.Empty;
         public Type? OutputInterface { get; set; } = null;
     }
 
@@ -36,10 +44,8 @@ namespace UTools.SourceGeneratorAttributes
     /// This attribute is used for SourceGenerator. Add it to generate automatic subscriptions
     /// </summary>
     [AttributeUsage(AttributeTargets.Field)]
-    public class EventSubscriptionAttribute : Attribute, IOutputInterfaceAttrParameter, IPropertyNameAttrParameter, IInitializeOnStartAttrParameter
+    public class EventSubscriptionAttribute : Attribute, IOutputInterfaceAttrParameter
     {
-        public bool InitializeOnStart { get; set; } = false;
-        public string PropertyName { get; set; } = string.Empty;
         public Type? OutputInterface { get; set; } = null;
     }
 
