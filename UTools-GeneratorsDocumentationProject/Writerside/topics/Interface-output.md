@@ -1,6 +1,8 @@
 # Interface output
 
-You can use OutputInterface parameter to export generated subscriptions and properties to the interface.
+You can use OutputInterface parameter to export generated subscriptions and properties to the interface. Static fields and
+classes are not supported.
+
 To do this:
 - Create your partial interface
 - Use it as OutputInterface parameter for the attribute.
@@ -8,6 +10,23 @@ To do this:
 Example usage:
 
 ```C#
+using UTools.SourceGeneratorAttributes;
+using System;
+
+namespace ExampleNamespace.NameSpace
+{
+    //the generated properties and subscriptions will exported to this interface.
+    //the interface will also be added to DisposableSubscriptionExample class.
+    public partial interface ITestInterface
+    {
+    }
+
+    public partial class DisposableSubscriptionExample
+    {
+        [DisposableSubscription(OutputInterface = typeof(ITestInterface))]
+        private bool m_TestFieldDisposable;
+    }
+}
 
 ```
 
