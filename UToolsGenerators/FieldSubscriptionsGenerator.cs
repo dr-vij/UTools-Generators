@@ -24,7 +24,7 @@ namespace UTools.SourceGenerators
         private UsingDirectiveSyntax m_UToolsUsing = SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("UTools"));
         private UsingDirectiveSyntax m_SystemUsing = SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System"));
 
-        private readonly Dictionary<string, InterfaceBuilderContainer> m_InterfaceBuilders = new();
+        private readonly Dictionary<string, InterfaceBuilder> m_InterfaceBuilders = new();
 
         public void Initialize(GeneratorInitializationContext context)
         {
@@ -72,28 +72,40 @@ namespace UTools.SourceGenerators
                     m_Members.Add(eventField);
                     m_Members.Add(propertyDeclaration);
 
-                    if (fieldNode.HasAttribute(disposableSubscriptionAttribute))
+                    var hasDisposableSubscription = fieldNode.HasAttribute(disposableSubscriptionAttribute);
+                    var hasEventSubscription = fieldNode.HasAttribute(eventSubscriptionAttribute);
+
+                    if (hasDisposableSubscription || hasEventSubscription)
                     {
+                        //Prepare the interfaces and their subscriptions
                         if (TryGetTypeFromAttributeInterfaceProperty(compilation, fieldNode, disposableSubscriptionAttribute, out var interfaceType))
                         {
                             var key = interfaceType.Name + interfaceType.ContainingNamespace;
                             if (!m_InterfaceBuilders.TryGetValue(key, out var interfaceBuilder))
                             {
-                                interfaceBuilder = new InterfaceBuilderContainer(key, interfaceType);
+                                interfaceBuilder = new InterfaceBuilder(key, interfaceType);
                                 m_InterfaceBuilders.Add(key, interfaceBuilder);
                             }
 
-                            interfaceBuilder.Members.Add(CreateDefaultProperty(fieldType, propertyName, false));
+                            interfaceBuilder.AddInterfaceProperty(fieldType, propertyName);
+                            if (hasDisposableSubscription)
+                                interfaceBuilder.AddInterfaceSubscriptionMethod(fieldType, subscriptionMethodName);
+
+                            if (hasEventSubscription)
+                                interfaceBuilder.AddInterfaceSubscriptionEvent(fieldType, subscriptionEventName);
                         }
 
-                        var subscriptionMethod = CreateDisposableSubscriptionMethod(fieldType, subscriptionMethodName, fieldName, privateEventName, isStatic);
-                        m_Members.Add(subscriptionMethod);
-                    }
+                        if (hasDisposableSubscription)
+                        {
+                            var subscriptionMethod = CreateDisposableSubscriptionMethod(fieldType, subscriptionMethodName, fieldName, privateEventName, isStatic);
+                            m_Members.Add(subscriptionMethod);
+                        }
 
-                    if (fieldNode.HasAttribute(eventSubscriptionAttribute))
-                    {
-                        var subscriptionEvent = CreateSubscriptionEvent(fieldType, subscriptionEventName, fieldName, privateEventName, isStatic);
-                        m_Members.Add(subscriptionEvent);
+                        if (hasEventSubscription)
+                        {
+                            var subscriptionEvent = CreateSubscriptionEvent(fieldType, subscriptionEventName, fieldName, privateEventName, isStatic);
+                            m_Members.Add(subscriptionEvent);
+                        }
                     }
 
                     newClass = newClass.AddMembers(m_Members.ToArray());
@@ -102,11 +114,11 @@ namespace UTools.SourceGenerators
                 var compilationUnit = SyntaxFactory.CompilationUnit()
                     .AddUsings(classNode.GetUsingArr())
                     .AddUsings(m_ExtraUsing.ToArray());
-                
+
                 var interfaces = m_InterfaceBuilders.Values.Select(builder => builder.ToSyntaxNode()).ToArray();
                 foreach (var interfaceBuilder in m_InterfaceBuilders.Values)
                     newClass = newClass.AddBaseListTypes(interfaceBuilder.ToSimpleBaseTypeSyntax());
-                
+
                 var classWithHierarchy = classNode.CopyHierarchyTo(newClass);
                 compilationUnit = compilationUnit
                     .AddMembers(interfaces)
@@ -314,31 +326,6 @@ namespace UTools.SourceGenerators
                 .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
         }
 
-        /// <summary>
-        /// Creates a property with simple get and set accessors.
-        /// </summary>
-        /// <param name="fieldType">The type of the property.</param>
-        /// <param name="propertyName">The name of the property.</param>
-        /// <param name="isStatic">Determines whether the property should be static.</param>
-        /// <returns>A PropertyDeclarationSyntax representing the created property.</returns>
-        private PropertyDeclarationSyntax CreateDefaultProperty(TypeSyntax fieldType, string propertyName, bool isStatic)
-        {
-            var modifiers = SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword));
-            if (isStatic)
-                modifiers = modifiers.Add(SyntaxFactory.Token(SyntaxKind.StaticKeyword));
-
-            var getAccessor = SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
-                .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
-
-            var setAccessor = SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration)
-                .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
-
-            var propertyDeclaration = SyntaxFactory.PropertyDeclaration(fieldType, propertyName)
-                .WithModifiers(modifiers)
-                .WithAccessorList(SyntaxFactory.AccessorList(SyntaxFactory.List(new[] { getAccessor, setAccessor })));
-
-            return propertyDeclaration;
-        }
 
         /// <summary>
         /// Create the property declaration with given field name and type.
