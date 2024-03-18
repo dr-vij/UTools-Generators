@@ -1,5 +1,9 @@
 using System;
 
+public class Subscription : Attribute
+{
+}
+
 namespace UTools.SourceGeneratorAttributes
 {
     #region Subscription Source Generator attributes
