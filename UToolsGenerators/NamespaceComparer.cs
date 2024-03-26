@@ -33,9 +33,9 @@ namespace UTools.SourceGenerators
     {
         private static UsingDirectiveSyntaxComparerWithAlias m_UsingComparer = new();
 
-        public static IEnumerable<UsingDirectiveSyntax> Distinct(params IEnumerable<UsingDirectiveSyntax>[] usingDirectives)
+        public static IEnumerable<UsingDirectiveSyntax> MakeDistinct(this IEnumerable<UsingDirectiveSyntax> usingDirectives)
         {
-            return usingDirectives.SelectMany(x => x).Distinct(m_UsingComparer);
+            return usingDirectives.Distinct(m_UsingComparer);
         }
     }
 }

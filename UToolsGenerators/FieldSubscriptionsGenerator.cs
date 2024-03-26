@@ -120,7 +120,7 @@ namespace UTools.SourceGenerators
                 var combinedUsing = classNode
                     .GetUsingArr()
                     .Concat(m_ExtraUsing)
-                    .Distinct()
+                    .MakeDistinct()
                     .ToArray();
 
                 var compilationUnit = SyntaxFactory.CompilationUnit()
