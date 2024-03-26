@@ -116,9 +116,14 @@ namespace UTools.SourceGenerators
                     newClass = newClass.AddMembers(m_Members.ToArray());
                 }
 
+                var combinedUsing = classNode
+                    .GetUsingArr()
+                    .Concat(m_ExtraUsing)
+                    .Distinct()
+                    .ToArray();
+
                 var compilationUnit = SyntaxFactory.CompilationUnit()
-                    .AddUsings(classNode.GetUsingArr())
-                    .AddUsings(m_ExtraUsing.ToArray());
+                    .AddUsings(combinedUsing);
 
                 var interfaces = m_InterfaceBuilders.Values.Select(builder => builder.ToSyntaxNode()).ToArray();
                 foreach (var interfaceBuilder in m_InterfaceBuilders.Values)

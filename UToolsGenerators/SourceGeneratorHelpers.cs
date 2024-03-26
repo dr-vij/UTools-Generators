@@ -130,7 +130,7 @@ namespace UTools.SourceGenerators
         /// </summary>
         /// <param name="syntax"></param>
         /// <returns></returns>
-        public static string GetNamespace(this BaseTypeDeclarationSyntax syntax)
+        public static string GetNamespaceString(this BaseTypeDeclarationSyntax syntax)
         {
             var nameSpace = string.Empty;
             SyntaxNode potentialNamespaceParent = syntax.Parent;
