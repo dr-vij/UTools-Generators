@@ -18,7 +18,8 @@ namespace UTools.SourceGenerators
         private readonly List<UsingDirectiveSyntax> m_ExtraUsing = new()
         {
             SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("UTools")),
-            SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System"))
+            SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System")),
+            SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System.Collections.Generic")),
         };
 
         private UsingDirectiveSyntax m_UToolsUsing = SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("UTools"));
@@ -391,12 +392,12 @@ namespace UTools.SourceGenerators
                 SyntaxFactory.Block(SyntaxFactory.SingletonList<StatementSyntax>(
                     SyntaxFactory.ReturnStatement(SyntaxFactory.IdentifierName(fieldName)))));
 
+            var notEqualsExpressionCode = $"!EqualityComparer<{fieldType}>.Default.Equals({fieldName}, value)";
+            var notEqualsExpression = SyntaxFactory.ParseExpression(notEqualsExpressionCode);
+
             var setAccessor = SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration).WithBody(
                 SyntaxFactory.Block(
-                    SyntaxFactory.IfStatement(
-                        SyntaxFactory.BinaryExpression(SyntaxKind.NotEqualsExpression,
-                            SyntaxFactory.IdentifierName(fieldName), SyntaxFactory.IdentifierName("value")),
-                        SyntaxFactory.Block(
+                    SyntaxFactory.IfStatement(notEqualsExpression, SyntaxFactory.Block(
                             SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(
                                 SyntaxKind.SimpleAssignmentExpression,
                                 SyntaxFactory.IdentifierName(fieldName), SyntaxFactory.IdentifierName("value"))),
