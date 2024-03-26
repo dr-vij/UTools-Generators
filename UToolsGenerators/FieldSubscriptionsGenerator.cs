@@ -50,7 +50,8 @@ namespace UTools.SourceGenerators
                     .OfType<FieldDeclarationSyntax>()
                     .Where(fieldNode => fieldAttributes.Any(fieldNode.HasAttribute));
 
-                var newClass = classNode.WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>()).WithoutTrivia();
+                var newClass = classNode.WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>()).WithoutTrivia()
+                    .WithAttributeLists(SyntaxFactory.List<AttributeListSyntax>());
                 foreach (var fieldNode in fieldNodes)
                 {
                     var isStatic = fieldNode.Modifiers.Any(SyntaxKind.StaticKeyword);
@@ -64,7 +65,8 @@ namespace UTools.SourceGenerators
                     var partialMethodName = $"On{propertyName}Change";
 
                     var eventField = CreateEventField(fieldType, privateEventName, isStatic);
-                    var propertyDeclaration = CreatePropertyAndCallbacks(fieldType, propertyName, fieldName, partialMethodName, privateEventName, isStatic);
+                    var propertyDeclaration = CreatePropertyAndCallbacks(fieldType, propertyName, fieldName,
+                        partialMethodName, privateEventName, isStatic);
                     var partialMethod = CreatePartialMethod(partialMethodName, fieldType, isStatic);
 
                     m_Members.Clear();
@@ -78,7 +80,8 @@ namespace UTools.SourceGenerators
                     if (hasDisposableSubscription || hasEventSubscription)
                     {
                         //Prepare the interfaces and their subscriptions
-                        if (TryGetTypeFromAttributeInterfaceProperty(compilation, fieldNode, disposableSubscriptionAttribute, out var interfaceType))
+                        if (TryGetTypeFromAttributeInterfaceProperty(compilation, fieldNode,
+                                disposableSubscriptionAttribute, out var interfaceType))
                         {
                             var key = interfaceType.Name + interfaceType.ContainingNamespace;
                             if (!m_InterfaceBuilders.TryGetValue(key, out var interfaceBuilder))
@@ -97,13 +100,15 @@ namespace UTools.SourceGenerators
 
                         if (hasDisposableSubscription)
                         {
-                            var subscriptionMethod = CreateDisposableSubscriptionMethod(fieldType, subscriptionMethodName, fieldName, privateEventName, isStatic);
+                            var subscriptionMethod = CreateDisposableSubscriptionMethod(fieldType,
+                                subscriptionMethodName, fieldName, privateEventName, isStatic);
                             m_Members.Add(subscriptionMethod);
                         }
 
                         if (hasEventSubscription)
                         {
-                            var subscriptionEvent = CreateSubscriptionEvent(fieldType, subscriptionEventName, fieldName, privateEventName, isStatic);
+                            var subscriptionEvent = CreateSubscriptionEvent(fieldType, subscriptionEventName, fieldName,
+                                privateEventName, isStatic);
                             m_Members.Add(subscriptionEvent);
                         }
                     }
@@ -139,7 +144,8 @@ namespace UTools.SourceGenerators
         /// <param name="compilation"></param>
         /// <param name="fieldNode"></param>
         /// <param name="attributeName"></param>
-        private bool TryGetTypeFromAttributeInterfaceProperty(Compilation compilation, FieldDeclarationSyntax fieldNode, string attributeName, out ITypeSymbol result)
+        private bool TryGetTypeFromAttributeInterfaceProperty(Compilation compilation, FieldDeclarationSyntax fieldNode,
+            string attributeName, out ITypeSymbol result)
         {
             result = null;
             fieldNode.HasAttribute(attributeName, out var subscriptionAttribute);
@@ -185,10 +191,12 @@ namespace UTools.SourceGenerators
             bool isStatic)
         {
             var modifiers = isStatic
-                ? SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword), SyntaxFactory.Token(SyntaxKind.StaticKeyword))
+                ? SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword),
+                    SyntaxFactory.Token(SyntaxKind.StaticKeyword))
                 : SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword));
             var eventHandlerTypeName = isStatic ? "Action" : "EventHandler";
-            var eventHandlerTypeArgumentList = SyntaxFactory.TypeArgumentList(SyntaxFactory.SingletonSeparatedList(fieldType));
+            var eventHandlerTypeArgumentList =
+                SyntaxFactory.TypeArgumentList(SyntaxFactory.SingletonSeparatedList(fieldType));
             var eventHandlerType = SyntaxFactory.GenericName(SyntaxFactory.Identifier(eventHandlerTypeName))
                 .WithTypeArgumentList(eventHandlerTypeArgumentList);
 
@@ -196,12 +204,16 @@ namespace UTools.SourceGenerators
                 .WithType(eventHandlerType);
 
             var eventNameExpression = SyntaxFactory.IdentifierName(eventName);
-            var addAssignment = SyntaxFactory.AssignmentExpression(SyntaxKind.AddAssignmentExpression, eventNameExpression, SyntaxFactory.IdentifierName("handler"));
+            var addAssignment = SyntaxFactory.AssignmentExpression(SyntaxKind.AddAssignmentExpression,
+                eventNameExpression, SyntaxFactory.IdentifierName("handler"));
             var removeAssignment =
-                SyntaxFactory.AssignmentExpression(SyntaxKind.SubtractAssignmentExpression, eventNameExpression, SyntaxFactory.IdentifierName("handler"));
+                SyntaxFactory.AssignmentExpression(SyntaxKind.SubtractAssignmentExpression, eventNameExpression,
+                    SyntaxFactory.IdentifierName("handler"));
 
             var handlerInvokeArguments = isStatic
-                ? SyntaxFactory.ArgumentList(SyntaxFactory.SingletonSeparatedList(SyntaxFactory.Argument(SyntaxFactory.IdentifierName(fieldName))))
+                ? SyntaxFactory.ArgumentList(
+                    SyntaxFactory.SingletonSeparatedList(
+                        SyntaxFactory.Argument(SyntaxFactory.IdentifierName(fieldName))))
                 : SyntaxFactory.ArgumentList(
                     SyntaxFactory.SeparatedList(
                         new[]
@@ -215,19 +227,23 @@ namespace UTools.SourceGenerators
             var handlerInvokeStatement = SyntaxFactory.ExpressionStatement(
                 SyntaxFactory.ConditionalAccessExpression(
                     SyntaxFactory.IdentifierName("handler"),
-                    SyntaxFactory.InvocationExpression(SyntaxFactory.MemberBindingExpression(SyntaxFactory.IdentifierName("Invoke")))
+                    SyntaxFactory
+                        .InvocationExpression(
+                            SyntaxFactory.MemberBindingExpression(SyntaxFactory.IdentifierName("Invoke")))
                         .WithArgumentList(handlerInvokeArguments)));
 
             var returnStatement = SyntaxFactory.ReturnStatement(
                 SyntaxFactory.ObjectCreationExpression(SyntaxFactory.IdentifierName("DisposeAction"))
-                    .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SingletonSeparatedList(SyntaxFactory.Argument(
-                        SyntaxFactory.ParenthesizedLambdaExpression(removeAssignment))))));
+                    .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SingletonSeparatedList(
+                        SyntaxFactory.Argument(
+                            SyntaxFactory.ParenthesizedLambdaExpression(removeAssignment))))));
 
             var methodBody = SyntaxFactory.Block(SyntaxFactory.ExpressionStatement(addAssignment),
                 handlerInvokeStatement,
                 returnStatement);
 
-            var methodDeclaration = SyntaxFactory.MethodDeclaration(SyntaxFactory.IdentifierName("IDisposable"), SyntaxFactory.Identifier(subscriptionMethodName))
+            var methodDeclaration = SyntaxFactory.MethodDeclaration(SyntaxFactory.IdentifierName("IDisposable"),
+                    SyntaxFactory.Identifier(subscriptionMethodName))
                 .WithModifiers(modifiers)
                 .WithParameterList(SyntaxFactory.ParameterList(SyntaxFactory.SingletonSeparatedList(parameter)))
                 .WithBody(methodBody);
@@ -245,13 +261,15 @@ namespace UTools.SourceGenerators
         /// <param name="privateEventName"></param>
         /// <param name="isStatic"></param>
         /// <returns></returns>
-        private static EventDeclarationSyntax CreateSubscriptionEvent(TypeSyntax fieldType, string subscriptionEventName, string fieldName, string privateEventName,
+        private static EventDeclarationSyntax CreateSubscriptionEvent(TypeSyntax fieldType,
+            string subscriptionEventName, string fieldName, string privateEventName,
             bool isStatic)
         {
             var genericType = isStatic ? "Action" : "EventHandler";
             // public static or public
             var modifiers = isStatic
-                ? SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword), SyntaxFactory.Token(SyntaxKind.StaticKeyword))
+                ? SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword),
+                    SyntaxFactory.Token(SyntaxKind.StaticKeyword))
                 : SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword));
 
             //Prepare add and remove statements
@@ -282,7 +300,8 @@ namespace UTools.SourceGenerators
                             SyntaxFactory.SingletonSeparatedList(fieldType))),
                     SyntaxFactory.Identifier(subscriptionEventName))
                 .WithModifiers(modifiers)
-                .WithAccessorList(SyntaxFactory.AccessorList(SyntaxFactory.List(new[] { addAccessor, removeAccessor })));
+                .WithAccessorList(
+                    SyntaxFactory.AccessorList(SyntaxFactory.List(new[] { addAccessor, removeAccessor })));
             return eventSyntax;
         }
 
@@ -293,16 +312,20 @@ namespace UTools.SourceGenerators
         /// <param name="eventName">name of generated field</param>
         /// <param name="isStatic">makes event declaration static when true</param>
         /// <returns></returns>
-        private static EventFieldDeclarationSyntax CreateEventField(TypeSyntax fieldType, string eventName, bool isStatic = false)
+        private static EventFieldDeclarationSyntax CreateEventField(TypeSyntax fieldType, string eventName,
+            bool isStatic = false)
         {
             var eventHandlerType = isStatic ? $"Action<{fieldType}>" : $"EventHandler<{fieldType}>";
 
-            var modifiers = isStatic ? SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.StaticKeyword)) : SyntaxFactory.TokenList();
+            var modifiers = isStatic
+                ? SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.StaticKeyword))
+                : SyntaxFactory.TokenList();
             modifiers.Add(SyntaxFactory.Token(SyntaxKind.PrivateKeyword));
 
             return SyntaxFactory.EventFieldDeclaration(
                     SyntaxFactory.VariableDeclaration(SyntaxFactory.ParseTypeName(eventHandlerType))
-                        .WithVariables(SyntaxFactory.SingletonSeparatedList(SyntaxFactory.VariableDeclarator(eventName))))
+                        .WithVariables(
+                            SyntaxFactory.SingletonSeparatedList(SyntaxFactory.VariableDeclarator(eventName))))
                 .WithModifiers(modifiers);
         }
 
@@ -313,16 +336,21 @@ namespace UTools.SourceGenerators
         /// <param name="parameterType">type of generated method parameter</param>
         /// <param name="isStatic">makes method declaration static when true</param>
         /// <returns></returns>
-        private static MethodDeclarationSyntax CreatePartialMethod(string methodName, TypeSyntax parameterType, bool isStatic)
+        private static MethodDeclarationSyntax CreatePartialMethod(string methodName, TypeSyntax parameterType,
+            bool isStatic)
         {
             var modifiers = isStatic
-                ? SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.StaticKeyword), SyntaxFactory.Token(SyntaxKind.PartialKeyword))
+                ? SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.StaticKeyword),
+                    SyntaxFactory.Token(SyntaxKind.PartialKeyword))
                 : SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PartialKeyword));
-            return SyntaxFactory.MethodDeclaration(SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.VoidKeyword)), methodName)
+            return SyntaxFactory
+                .MethodDeclaration(SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.VoidKeyword)),
+                    methodName)
                 .WithModifiers(modifiers)
                 .WithParameterList(
                     SyntaxFactory.ParameterList(
-                        SyntaxFactory.SingletonSeparatedList(SyntaxFactory.Parameter(SyntaxFactory.Identifier("newValue")).WithType(parameterType))))
+                        SyntaxFactory.SingletonSeparatedList(SyntaxFactory
+                            .Parameter(SyntaxFactory.Identifier("newValue")).WithType(parameterType))))
                 .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
         }
 
@@ -350,7 +378,9 @@ namespace UTools.SourceGenerators
             if (isStatic)
                 modifiers = modifiers.Add(SyntaxFactory.Token(SyntaxKind.StaticKeyword));
 
-            var eventInvocation = isStatic ? $"{eventCallbackName}?.Invoke(value);" : $"{eventCallbackName}?.Invoke(this, value)";
+            var eventInvocation = isStatic
+                ? $"{eventCallbackName}?.Invoke(value);"
+                : $"{eventCallbackName}?.Invoke(this, value)";
 
             var getAccessor = SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration).WithBody(
                 SyntaxFactory.Block(SyntaxFactory.SingletonList<StatementSyntax>(
@@ -359,13 +389,18 @@ namespace UTools.SourceGenerators
             var setAccessor = SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration).WithBody(
                 SyntaxFactory.Block(
                     SyntaxFactory.IfStatement(
-                        SyntaxFactory.BinaryExpression(SyntaxKind.NotEqualsExpression, SyntaxFactory.IdentifierName(fieldName), SyntaxFactory.IdentifierName("value")),
+                        SyntaxFactory.BinaryExpression(SyntaxKind.NotEqualsExpression,
+                            SyntaxFactory.IdentifierName(fieldName), SyntaxFactory.IdentifierName("value")),
                         SyntaxFactory.Block(
-                            SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(SyntaxKind.SimpleAssignmentExpression,
+                            SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(
+                                SyntaxKind.SimpleAssignmentExpression,
                                 SyntaxFactory.IdentifierName(fieldName), SyntaxFactory.IdentifierName("value"))),
                             SyntaxFactory.ExpressionStatement(SyntaxFactory.ParseExpression(eventInvocation)),
-                            SyntaxFactory.ExpressionStatement(SyntaxFactory.InvocationExpression(SyntaxFactory.IdentifierName(methodCallbackName),
-                                SyntaxFactory.ArgumentList(SyntaxFactory.SingletonSeparatedList(SyntaxFactory.Argument(SyntaxFactory.IdentifierName("value"))))))
+                            SyntaxFactory.ExpressionStatement(SyntaxFactory.InvocationExpression(
+                                SyntaxFactory.IdentifierName(methodCallbackName),
+                                SyntaxFactory.ArgumentList(
+                                    SyntaxFactory.SingletonSeparatedList(
+                                        SyntaxFactory.Argument(SyntaxFactory.IdentifierName("value"))))))
                         )
                     )
                 )
