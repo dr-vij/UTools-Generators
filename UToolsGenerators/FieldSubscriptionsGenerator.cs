@@ -80,9 +80,16 @@ namespace UTools.SourceGenerators
 
                     if (hasDisposableSubscription || hasEventSubscription)
                     {
+                        //We try to find the interface from the attribute. this interface will be used for exporting the
+                        //subscription
+                        var isInterfaceFound = TryGetTypeFromAttributeInterfaceProperty(compilation, fieldNode,
+                            disposableSubscriptionAttribute, out var interfaceType);
+                        if (!isInterfaceFound)
+                            isInterfaceFound = TryGetTypeFromAttributeInterfaceProperty(compilation, fieldNode,
+                                eventSubscriptionAttribute, out interfaceType);
+
                         //Prepare the interfaces and their subscriptions
-                        if (TryGetTypeFromAttributeInterfaceProperty(compilation, fieldNode,
-                                disposableSubscriptionAttribute, out var interfaceType))
+                        if (isInterfaceFound)
                         {
                             var key = interfaceType.Name + interfaceType.ContainingNamespace;
                             if (!m_InterfaceBuilders.TryGetValue(key, out var interfaceBuilder))
@@ -150,6 +157,7 @@ namespace UTools.SourceGenerators
         /// <param name="compilation"></param>
         /// <param name="fieldNode"></param>
         /// <param name="attributeName"></param>
+        /// <param name="result"></param>
         private bool TryGetTypeFromAttributeInterfaceProperty(Compilation compilation, FieldDeclarationSyntax fieldNode,
             string attributeName, out ITypeSymbol result)
         {

@@ -2,8 +2,13 @@ using UTools.SourceGeneratorAttributes;
 
 namespace ExampleNamespace.NameSpace
 {
+    public partial interface IEventInterface
+    {
+    }
+
     public partial class EventSubscriptionExample
     {
-        [EventSubscription] private static bool m_TestFieldEvent;
+        [EventSubscription(OutputInterface = typeof(IEventInterface))]
+        private bool m_TestFieldEvent;
     }
 }
