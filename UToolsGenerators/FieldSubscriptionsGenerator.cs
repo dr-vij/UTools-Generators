@@ -51,8 +51,10 @@ namespace UTools.SourceGenerators
                     .OfType<FieldDeclarationSyntax>()
                     .Where(fieldNode => fieldAttributes.Any(fieldNode.HasAttribute));
 
-                var newClass = classNode.WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>()).WithoutTrivia()
-                    .WithAttributeLists(SyntaxFactory.List<AttributeListSyntax>());
+                var newClass = classNode.WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>())
+                    .WithoutTrivia()
+                    .WithAttributeLists(SyntaxFactory.List<AttributeListSyntax>())
+                    .WithBaseList(null);
                 foreach (var fieldNode in fieldNodes)
                 {
                     var isStatic = fieldNode.Modifiers.Any(SyntaxKind.StaticKeyword);
