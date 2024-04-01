@@ -8,19 +8,28 @@
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
-      <OutputPath>../Build/Debug</OutputPath>
+        <OutputPath>../Build/Debug</OutputPath>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-      <OutputPath>../Build/Release</OutputPath>
+        <OutputPath>../Build/Release</OutputPath>
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Microsoft.CodeAnalysis" Version="3.8.0" />
+        <PackageReference Include="Microsoft.CodeAnalysis" Version="3.8.0" PrivateAssets="all"/>
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\UToolsAttributes\UToolsAttributes.csproj" />
+        <ProjectReference Include="..\UToolsAttributes\UToolsAttributes.csproj" PrivateAssets="all"/>
     </ItemGroup>
 
+    <PropertyGroup>
+        <GetTargetPathDependsOn>$(GetTargetPathDependsOn);GetDependencyTargetPaths</GetTargetPathDependsOn>
+    </PropertyGroup>
+
+    <Target Name="GetDependencyTargetPaths">
+        <ItemGroup>
+            <TargetPathWithTargetPlatformMoniker Include="$(OutputPath)UToolsAttributes.dll" IncludeRuntimeDependency="false" />
+        </ItemGroup>
+    </Target>
 </Project>

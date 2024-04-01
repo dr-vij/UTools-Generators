@@ -4,11 +4,30 @@ using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using UTools.SourceGeneratorAttributes;
 
 namespace UTools.SourceGenerators
 {
     public static class AttributeHelpers
     {
+        public static SyntaxKind ToVisibilitySyntaxKind(this Visibility visibility)
+        {
+            return visibility switch
+            {
+                Visibility.Public => SyntaxKind.PublicKeyword,
+                Visibility.Protected => SyntaxKind.ProtectedKeyword,
+                Visibility.Private => SyntaxKind.PrivateKeyword,
+                Visibility.Internal => SyntaxKind.InternalKeyword,
+                _ => throw new ArgumentOutOfRangeException(nameof(visibility), visibility, null)
+            };
+        }
+        
+        public static string GetLastWord(this string str)
+        {
+            var lastComma = str.LastIndexOf('.');
+            return lastComma == -1 ? str : str.Substring(lastComma + 1);
+        }
+        
         /// <summary>
         ///  Get all fields of a class that are constants and have a specific attribute
         /// </summary>
@@ -56,7 +75,76 @@ namespace UTools.SourceGenerators
             return compilation.GetNodesOfType<ClassDeclarationSyntax>()
                 .Where(classDec => attributes.Any(classDec.HasAttribute));
         }
+
+
+        public static bool TryGetAttribute(this MemberDeclarationSyntax memberNode, Compilation compilation, string attributeName, out AttributeSyntax result)
+        {
+            var model = compilation.GetSemanticModel(memberNode.SyntaxTree);
+            var attributes = memberNode.AttributeLists.SelectMany(attrList => attrList.Attributes);
+            foreach (var attribute in attributes)
+            {
+                var attributeSymbol = model.GetSymbolInfo(attribute).Symbol as IMethodSymbol;
+                if (attributeSymbol?.ContainingType.Name == attributeName)
+                {
+                    result = attribute;
+                    return true;
+                }
+            }
+
+            result = null;
+            return false;
+        }
         
+        public static bool TryGetAttributeParameter(
+            this FieldDeclarationSyntax fieldNode,
+            Compilation compilation,
+            string attributeName,
+            string parameterName,
+            out ExpressionSyntax result)
+        {
+            var attrFound = fieldNode.TryGetAttribute(compilation, attributeName, out var attribute);
+            
+            if (attrFound)
+            {
+                var model = compilation.GetSemanticModel(attribute.SyntaxTree);
+                var attributeSymbol = model.GetSymbolInfo(attribute).Symbol as IMethodSymbol;
+
+                var index = -1;
+                foreach (var parameter in attributeSymbol.Parameters)
+                {
+                    var name = parameter.Name;
+                    name = char.ToUpper(name[0]) + name.Substring(1);
+
+                    if (name == parameterName)
+                    {
+                        index = parameter.Ordinal;
+                        break;
+                    }
+                }
+                
+                if (attribute.ArgumentList != null)
+                {
+                    if (index != -1)
+                    {
+                        result = attribute.ArgumentList.Arguments[index].Expression;
+                        return true;
+                    }
+                    
+                    foreach (var argument in attribute.ArgumentList.Arguments)
+                    {
+                        if (argument.NameEquals?.Name.Identifier.Text == parameterName)
+                        { 
+                            result = argument.Expression;
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            result = null;
+            return false;
+        }
+
         /// <summary>
         /// Tries to get the type symbols from the attribute interface property of a field node.
         /// </summary>

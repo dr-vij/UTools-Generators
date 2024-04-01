@@ -27,17 +27,14 @@ namespace UTools.SourceGenerators
 
         private readonly Dictionary<string, InterfaceBuilder> m_InterfaceBuilders = new();
 
-        public void Initialize(GeneratorInitializationContext context)
-        {
-        }
+        public void Initialize(GeneratorInitializationContext context) { }
 
         public void Execute(GeneratorExecutionContext context)
         {
             var compilation = context.Compilation;
-            var disposableSubscriptionAttribute = nameof(DisposableSubscriptionAttribute);
-            var eventSubscriptionAttribute = nameof(EventSubscriptionAttribute);
+            var subscriptionAttribute = nameof(PropertySubscription);
 
-            var fieldAttributes = new[] { disposableSubscriptionAttribute, eventSubscriptionAttribute };
+            var fieldAttributes = new[] { subscriptionAttribute };
 
             var classNodes = compilation.GetClassesByFieldAttributes(fieldAttributes);
             var counter = 0;
@@ -55,6 +52,7 @@ namespace UTools.SourceGenerators
                     .WithoutTrivia()
                     .WithAttributeLists(SyntaxFactory.List<AttributeListSyntax>())
                     .WithBaseList(null);
+
                 foreach (var fieldNode in fieldNodes)
                 {
                     var isStatic = fieldNode.Modifiers.Any(SyntaxKind.StaticKeyword);
@@ -67,9 +65,37 @@ namespace UTools.SourceGenerators
                     var subscriptionMethodName = $"SubscribeTo{propertyName}";
                     var partialMethodName = $"On{propertyName}Change";
 
+                    //PREPARE GETTER AND SETTERS VISIBILITY
+                    var setterVisibilityFound = fieldNode.TryGetAttributeParameter(
+                        compilation,
+                        subscriptionAttribute,
+                        nameof(PropertySubscription.SetterVisibility),
+                        out var setterVisibilityExp);
+                    var getterVisibilityFound = fieldNode.TryGetAttributeParameter(
+                        compilation, subscriptionAttribute,
+                        nameof(PropertySubscription.GetterVisibility),
+                        out var getterVisibilityExp);
+
+                    var setterVisibility = Visibility.Public;
+                    if (setterVisibilityFound)
+                        setterVisibility = (Visibility)Enum.Parse(typeof(Visibility), setterVisibilityExp.ToString().GetLastWord());
+
+                    var getterVisibility = Visibility.Public;
+                    if (getterVisibilityFound)
+                        getterVisibility = (Visibility)Enum.Parse(typeof(Visibility), getterVisibilityExp.ToString().GetLastWord());
+
                     var eventField = CreateEventField(fieldType, privateEventName, isStatic);
-                    var propertyDeclaration = CreatePropertyAndCallbacks(fieldType, propertyName, fieldName,
-                        partialMethodName, privateEventName, isStatic);
+                   
+                    var propertyDeclaration = CreatePropertyAndCallbacks(
+                        fieldType,
+                        propertyName,
+                        fieldName,
+                        partialMethodName,
+                        privateEventName,
+                        isStatic,
+                        getterVisibility,
+                        setterVisibility
+                    );
                     var partialMethod = CreatePartialMethod(partialMethodName, fieldType, isStatic);
 
                     m_Members.Clear();
@@ -77,16 +103,22 @@ namespace UTools.SourceGenerators
                     m_Members.Add(eventField);
                     m_Members.Add(propertyDeclaration);
 
-                    var hasDisposableSubscription = fieldNode.HasAttribute(disposableSubscriptionAttribute);
-                    var hasEventSubscription = fieldNode.HasAttribute(eventSubscriptionAttribute);
+                    var hasDisposableSubscription = fieldNode.HasAttribute(subscriptionAttribute);
 
-                    if (hasDisposableSubscription || hasEventSubscription)
+                    if (hasDisposableSubscription)
                     {
-                        //We try to find the interface from the attribute. this interface will be used for exporting the
-                        //subscription
-                        var isInterfacesFound = compilation.TryGetTypeFromAttributeInterfaceProperty(fieldNode, disposableSubscriptionAttribute, out var interfaceTypes);
-                        if (!isInterfacesFound)
-                            isInterfacesFound = compilation.TryGetTypeFromAttributeInterfaceProperty(fieldNode, eventSubscriptionAttribute, out interfaceTypes);
+                        var selectedSubscriptionType = SubscriptionType.Disposable;
+                        var subscriptionTypeFound = fieldNode.TryGetAttributeParameter(
+                            compilation,
+                            subscriptionAttribute,
+                            nameof(PropertySubscription.SubscriptionType),
+                            out var subscriptionTypeExp);
+                        if (subscriptionTypeFound)
+                            selectedSubscriptionType = (SubscriptionType)Enum.Parse(typeof(SubscriptionType), subscriptionTypeExp.ToString().GetLastWord());
+
+                        //We try to find interface from attribute, and property visibility
+                        compilation.TryGetTypeFromAttributeInterfaceProperty(fieldNode, subscriptionAttribute, out var interfaceTypes);
+
 
                         //Prepare the interfaces and their subscriptions
                         foreach (var interfaceType in interfaceTypes)
@@ -98,27 +130,32 @@ namespace UTools.SourceGenerators
                                 m_InterfaceBuilders.Add(key, interfaceBuilder);
                             }
 
-                            interfaceBuilder.AddInterfaceProperty(fieldType, propertyName);
-                            if (hasDisposableSubscription)
-                                interfaceBuilder.AddInterfaceSubscriptionMethod(fieldType, subscriptionMethodName);
-
-                            if (hasEventSubscription)
-                                interfaceBuilder.AddInterfaceSubscriptionEvent(fieldType, subscriptionEventName);
+                            interfaceBuilder.AddInterfaceProperty(fieldType, propertyName, getterVisibility, setterVisibility);
+                            switch (selectedSubscriptionType)
+                            {
+                                case SubscriptionType.Disposable:
+                                    interfaceBuilder.AddInterfaceSubscriptionMethod(fieldType, subscriptionMethodName, getterVisibility);
+                                    break;
+                                case SubscriptionType.Event:
+                                    interfaceBuilder.AddInterfaceSubscriptionEvent(fieldType, subscriptionEventName, getterVisibility);
+                                    break;
+                            }
                         }
 
-                        if (hasDisposableSubscription)
+                        //Create subscription, depending on the attribute type
+                        MemberDeclarationSyntax subscription = null;
+                        switch (selectedSubscriptionType)
                         {
-                            var subscriptionMethod = CreateDisposableSubscriptionMethod(fieldType,
-                                subscriptionMethodName, fieldName, privateEventName, isStatic);
-                            m_Members.Add(subscriptionMethod);
+                            case SubscriptionType.Disposable:
+                                subscription = CreateDisposableSubscriptionMethod(fieldType, subscriptionMethodName, fieldName, privateEventName, isStatic, getterVisibility);
+                                break;
+                            case SubscriptionType.Event:
+                                subscription = CreateSubscriptionEvent(fieldType, subscriptionEventName, fieldName, privateEventName, isStatic, getterVisibility);
+                                break;
                         }
 
-                        if (hasEventSubscription)
-                        {
-                            var subscriptionEvent = CreateSubscriptionEvent(fieldType, subscriptionEventName, fieldName,
-                                privateEventName, isStatic);
-                            m_Members.Add(subscriptionEvent);
-                        }
+                        if (subscription != null)
+                            m_Members.Add(subscription);
                     }
 
                     newClass = newClass.AddMembers(m_Members.ToArray());
@@ -149,7 +186,6 @@ namespace UTools.SourceGenerators
             }
         }
 
-        
 
         /// <summary>
         /// Create the disposable subscription method for the given event name and field name
@@ -159,18 +195,23 @@ namespace UTools.SourceGenerators
         /// <param name="fieldName"></param>
         /// <param name="eventName"></param>
         /// <param name="isStatic"></param>
+        /// <param name="visibility"></param>
         /// <returns></returns>
         private static MethodDeclarationSyntax CreateDisposableSubscriptionMethod(
             TypeSyntax fieldType,
             string subscriptionMethodName,
             string fieldName,
             string eventName,
-            bool isStatic)
+            bool isStatic,
+            Visibility visibility
+        )
         {
+            var visibilityToken = visibility.ToVisibilitySyntaxKind();
+
             var modifiers = isStatic
-                ? SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword),
+                ? SyntaxFactory.TokenList(SyntaxFactory.Token(visibilityToken),
                     SyntaxFactory.Token(SyntaxKind.StaticKeyword))
-                : SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword));
+                : SyntaxFactory.TokenList(SyntaxFactory.Token(visibilityToken));
             var eventHandlerTypeName = isStatic ? "Action" : "EventHandler";
             var eventHandlerTypeArgumentList =
                 SyntaxFactory.TypeArgumentList(SyntaxFactory.SingletonSeparatedList(fieldType));
@@ -236,17 +277,24 @@ namespace UTools.SourceGenerators
         /// <param name="fieldName"></param>
         /// <param name="privateEventName"></param>
         /// <param name="isStatic"></param>
+        /// <param name="visibility"></param>
         /// <returns></returns>
-        private static EventDeclarationSyntax CreateSubscriptionEvent(TypeSyntax fieldType,
-            string subscriptionEventName, string fieldName, string privateEventName,
-            bool isStatic)
+        private static EventDeclarationSyntax CreateSubscriptionEvent(
+            TypeSyntax fieldType,
+            string subscriptionEventName,
+            string fieldName,
+            string privateEventName,
+            bool isStatic,
+            Visibility visibility
+        )
         {
             var genericType = isStatic ? "Action" : "EventHandler";
+            var visibilityToken = visibility.ToVisibilitySyntaxKind();
             // public static or public
             var modifiers = isStatic
-                ? SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword),
+                ? SyntaxFactory.TokenList(SyntaxFactory.Token(visibilityToken),
                     SyntaxFactory.Token(SyntaxKind.StaticKeyword))
-                : SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword));
+                : SyntaxFactory.TokenList(SyntaxFactory.Token(visibilityToken));
 
             //Prepare add and remove statements
             var invokeStatement = isStatic
@@ -341,6 +389,8 @@ namespace UTools.SourceGenerators
         /// <param name="eventCallbackName"></param>
         /// <param name="fieldType"></param>
         /// <param name="isStatic"></param>
+        /// <param name="getterVisibility"></param>
+        /// <param name="setterVisibility"></param>
         /// <returns></returns>
         private PropertyDeclarationSyntax CreatePropertyAndCallbacks(
             TypeSyntax fieldType,
@@ -348,9 +398,16 @@ namespace UTools.SourceGenerators
             string fieldName,
             string methodCallbackName,
             string eventCallbackName,
-            bool isStatic)
+            bool isStatic,
+            Visibility getterVisibility,
+            Visibility setterVisibility
+        )
         {
-            var modifiers = SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword));
+            var lessRestrictiveVisibility = getterVisibility < setterVisibility ? getterVisibility : setterVisibility;
+            var needGetterRestriction = getterVisibility > setterVisibility;
+            var needSetterRestriction = setterVisibility > getterVisibility;
+
+            var modifiers = SyntaxFactory.TokenList(SyntaxFactory.Token(lessRestrictiveVisibility.ToVisibilitySyntaxKind()));
             if (isStatic)
                 modifiers = modifiers.Add(SyntaxFactory.Token(SyntaxKind.StaticKeyword));
 
@@ -361,6 +418,9 @@ namespace UTools.SourceGenerators
             var getAccessor = SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration).WithBody(
                 SyntaxFactory.Block(SyntaxFactory.SingletonList<StatementSyntax>(
                     SyntaxFactory.ReturnStatement(SyntaxFactory.IdentifierName(fieldName)))));
+            getAccessor = needGetterRestriction
+                ? getAccessor.WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(getterVisibility.ToVisibilitySyntaxKind())))
+                : getAccessor;
 
             var notEqualsExpressionCode = $"!EqualityComparer<{fieldType}>.Default.Equals({fieldName}, value)";
             var notEqualsExpression = SyntaxFactory.ParseExpression(notEqualsExpressionCode);
@@ -381,6 +441,10 @@ namespace UTools.SourceGenerators
                     )
                 )
             );
+
+            setAccessor = needSetterRestriction
+                ? setAccessor.WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(setterVisibility.ToVisibilitySyntaxKind())))
+                : setAccessor;
 
             var propertyDeclaration = SyntaxFactory.PropertyDeclaration(fieldType, propertyName)
                 .WithModifiers(modifiers)

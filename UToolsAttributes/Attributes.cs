@@ -2,61 +2,78 @@ using System;
 
 namespace UTools.SourceGeneratorAttributes
 {
+    public enum Visibility
+    {
+        Public = 0,
+        Internal = 1,
+        Protected = 2,
+        Private = 3,
+    }
+
+    public enum AccessorType
+    {
+        Get = 0,
+        Set = 1
+    }
+
+    public enum SubscriptionType
+    {
+        Disposable = 0,
+        Event = 1
+    }
+
     #region Subscription Source Generator attributes
-
-    /// <summary>
-    /// This attribute parameter is used for SourceGenerator.
-    /// The attributes with it would export their subscription to the specified interface
-    /// </summary>
-    public interface IOutputInterfaceAttrParameter
-    {
-        public Type[]? OutputInterfaces { get; set; }
-    }
-
-    /// <summary>
-    /// TODO: implement optional parameters
-    /// </summary>
-    public interface IPropertyNameAttrParameter
-    {
-        public string PropertyName { get; set; }
-    }
-
-    /// <summary>
-    /// TODO: implement optional parameters
-    /// </summary>
-    public interface IInitializeOnStartAttrParameter
-    {
-        public bool InitializeOnStart { get; set; }
-    }
 
     /// <summary>
     /// TODO: implement optional parameters and property name
     /// This attribute is used for SourceGenerator. Add it to a field to make IDisposable subscription for it
     /// </summary>
     [AttributeUsage(validOn: AttributeTargets.Field)]
-    public class DisposableSubscriptionAttribute : Attribute, IOutputInterfaceAttrParameter
+    public class PropertySubscription : Attribute
     {
-        public DisposableSubscriptionAttribute(params Type[] outputInterfaces)
+        public SubscriptionType SubscriptionType { get; set; } = SubscriptionType.Disposable;
+        public Type[]? OutputInterfaces { get; set; }
+
+        public Visibility SetterVisibility { get; set; }
+
+        public Visibility GetterVisibility { get; set; }
+
+        public PropertySubscription() { }
+
+        public PropertySubscription(
+            SubscriptionType subscriptionType = SubscriptionType.Disposable,
+            Visibility getterVisibility = Visibility.Public,
+            Visibility setterVisibility = Visibility.Public,
+            params Type[] outputInterfaces)
         {
+            SubscriptionType = subscriptionType;
+            GetterVisibility = getterVisibility;
+            SetterVisibility = setterVisibility;
             OutputInterfaces = outputInterfaces;
         }
 
-        public Type[]? OutputInterfaces { get; set; }
-    }
-
-    /// <summary>
-    /// TODO: implement optional parameters and property name
-    /// This attribute is used for SourceGenerator. Add it to generate automatic subscriptions
-    /// </summary>
-    [AttributeUsage(AttributeTargets.Field)]
-    public class EventSubscriptionAttribute : Attribute, IOutputInterfaceAttrParameter
-    {
-        public EventSubscriptionAttribute(params Type[] outputInterfaces)
+        public PropertySubscription(
+            Visibility getterVisibility = Visibility.Public,
+            Visibility setterVisibility = Visibility.Public,
+            params Type[] outputInterfaces)
         {
+            GetterVisibility = getterVisibility;
+            SetterVisibility = setterVisibility;
             OutputInterfaces = outputInterfaces;
         }
 
-        public Type[]? OutputInterfaces { get; set; }
+        public PropertySubscription(
+            SubscriptionType subscriptionType = SubscriptionType.Disposable,
+            params Type[] outputInterfaces)
+        {
+            SubscriptionType = subscriptionType;
+            OutputInterfaces = outputInterfaces;
+        }
+
+        public PropertySubscription(params Type[] outputInterfaces)
+        {
+            OutputInterfaces = outputInterfaces;
+        }
     }
 
     #endregion
@@ -67,25 +84,19 @@ namespace UTools.SourceGeneratorAttributes
     /// This attribute is used for SourceGenerator. Add it to partial static class to make it int properties provider
     /// </summary>
     [AttributeUsage(AttributeTargets.Class)]
-    public class ShaderPropertiesProviderAttribute : Attribute
-    {
-    }
+    public class ShaderPropertiesProviderAttribute : Attribute { }
 
     /// <summary>
     /// This attribute is used for SourceGenerator. Add it to a string constant with shader name to make a shader property for it
     /// </summary>
     [AttributeUsage(AttributeTargets.Field)]
-    public class ShaderNameAttribute : Attribute
-    {
-    }
+    public class ShaderNameAttribute : Attribute { }
 
     /// <summary>
     /// This attribute is used for SourceGenerator. Add it to a string constant with a shader property name to make a shader property for it
     /// </summary>
     [AttributeUsage(AttributeTargets.Field)]
-    public class ShaderPropertyAttribute : Attribute
-    {
-    }
+    public class ShaderPropertyAttribute : Attribute { }
 
     #endregion
 }

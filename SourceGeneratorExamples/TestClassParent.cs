@@ -9,7 +9,7 @@ namespace ExampleNamespace.NameSpace
     [MyTestAttr]
     public partial class CombinedSubscriptionsExample
     {
-        [DisposableSubscription] [EventSubscription]
+        [PropertySubscription]
         private static bool m_TwoSubscriptionsField;
     }
 }

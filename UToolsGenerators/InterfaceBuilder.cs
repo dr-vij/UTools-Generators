@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using UTools.SourceGeneratorAttributes;
 
 namespace UTools.SourceGenerators
 {
@@ -14,37 +15,42 @@ namespace UTools.SourceGenerators
 
         private readonly List<MemberDeclarationSyntax> m_Members = new();
 
+        private void AddMember(MemberDeclarationSyntax member)
+        {
+            if (member != null) m_Members.Add(member);
+        }
+
         public InterfaceBuilder(string key, ITypeSymbol referenceInterface)
         {
             Key = key;
             ReferenceInterface = referenceInterface;
         }
 
-        public void AddInterfaceSubscriptionMethod(TypeSyntax fieldType, string methodName)
+        public void AddInterfaceSubscriptionMethod(TypeSyntax fieldType, string methodName, Visibility methodVisibility)
         {
             var key = CreateKey(fieldType, methodName);
             if (!m_UsedSignatures.Add(key))
                 return;
 
-            m_Members.Add(CreateInterfaceSubscriptionMethod(fieldType, methodName));
+            AddMember(CreateInterfaceSubscriptionMethod(fieldType, methodName, methodVisibility));
         }
 
-        public void AddInterfaceSubscriptionEvent(TypeSyntax fieldType, string eventName)
+        public void AddInterfaceSubscriptionEvent(TypeSyntax fieldType, string eventName, Visibility eventVisibility)
         {
             var key = CreateKey(fieldType, eventName);
             if (!m_UsedSignatures.Add(key))
                 return;
 
-            m_Members.Add(CreateInterfaceSubscriptionEvent(fieldType, eventName));
+            AddMember(CreateInterfaceSubscriptionEvent(fieldType, eventName, eventVisibility));
         }
 
-        public void AddInterfaceProperty(TypeSyntax fieldType, string propertyName)
+        public void AddInterfaceProperty(TypeSyntax fieldType, string propertyName, Visibility getterVisibility, Visibility setterVisibility)
         {
             var key = CreateKey(fieldType, propertyName);
             if (!m_UsedSignatures.Add(key))
                 return;
 
-            m_Members.Add(CreateInterfaceProperty(fieldType, propertyName));
+            AddMember(CreateInterfaceProperty(fieldType, propertyName, getterVisibility, setterVisibility));
         }
 
         private string CreateKey(TypeSyntax fieldType, string methodName) => $"{fieldType}{methodName}";
@@ -81,20 +87,27 @@ namespace UTools.SourceGenerators
         /// </summary>
         /// <param name="fieldType">The type of the event's data.</param>
         /// <param name="methodName">The name of the method to be created.</param>
+        /// <param name="methodVisibility"></param>
         /// <returns>A MethodDeclarationSyntax object representing the created method.</returns>
-        public static MethodDeclarationSyntax CreateInterfaceSubscriptionMethod(TypeSyntax fieldType, string methodName)
+        public static MethodDeclarationSyntax CreateInterfaceSubscriptionMethod(TypeSyntax fieldType, string methodName, Visibility methodVisibility)
         {
-            var returnType = SyntaxFactory.IdentifierName("IDisposable");
-            var parameterType = SyntaxFactory.GenericName(SyntaxFactory.Identifier("EventHandler"))
-                .WithTypeArgumentList(SyntaxFactory.TypeArgumentList(SyntaxFactory.SingletonSeparatedList(fieldType)));
-            var parameter = SyntaxFactory.Parameter(SyntaxFactory.Identifier("handler")).WithType(parameterType);
+            if (methodVisibility == Visibility.Public)
+            {
+                var modifiers = SyntaxFactory.TokenList(SyntaxFactory.Token(methodVisibility.ToVisibilitySyntaxKind()));
 
-            var methodDeclaration = SyntaxFactory.MethodDeclaration(returnType, methodName)
-                .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
-                .WithParameterList(SyntaxFactory.ParameterList(SyntaxFactory.SingletonSeparatedList(parameter)))
-                .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
+                var returnType = SyntaxFactory.IdentifierName("IDisposable");
+                var parameterType = SyntaxFactory.GenericName(SyntaxFactory.Identifier("EventHandler"))
+                    .WithTypeArgumentList(SyntaxFactory.TypeArgumentList(SyntaxFactory.SingletonSeparatedList(fieldType)));
+                var parameter = SyntaxFactory.Parameter(SyntaxFactory.Identifier("handler")).WithType(parameterType);
 
-            return methodDeclaration;
+                var methodDeclaration = SyntaxFactory.MethodDeclaration(returnType, methodName)
+                    .WithModifiers(modifiers)
+                    .WithParameterList(SyntaxFactory.ParameterList(SyntaxFactory.SingletonSeparatedList(parameter)))
+                    .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
+
+                return methodDeclaration;
+            }
+            return null;
         }
 
         /// <summary>
@@ -102,15 +115,21 @@ namespace UTools.SourceGenerators
         /// </summary>
         /// <param name="fieldType">The type of the event's data.</param>
         /// <param name="eventName">The name of the event to be created.</param>
+        /// <param name="eventVisibility"></param>
         /// <returns>An EventFieldDeclarationSyntax object representing the created event field.</returns>
-        public static EventFieldDeclarationSyntax CreateInterfaceSubscriptionEvent(TypeSyntax fieldType, string eventName)
+        public static EventFieldDeclarationSyntax CreateInterfaceSubscriptionEvent(TypeSyntax fieldType, string eventName, Visibility eventVisibility)
         {
-            var genericType = $"EventHandler<{fieldType}>";
-            var modifiers = SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword));
-            return SyntaxFactory.EventFieldDeclaration(
-                    SyntaxFactory.VariableDeclaration(SyntaxFactory.ParseTypeName(genericType))
-                        .WithVariables(SyntaxFactory.SingletonSeparatedList(SyntaxFactory.VariableDeclarator(eventName))))
-                .WithModifiers(modifiers);
+            if (eventVisibility == Visibility.Public)
+            {
+                var genericType = $"EventHandler<{fieldType}>";
+                var modifiers = SyntaxFactory.TokenList(SyntaxFactory.Token(eventVisibility.ToVisibilitySyntaxKind()));
+                return SyntaxFactory.EventFieldDeclaration(
+                        SyntaxFactory.VariableDeclaration(SyntaxFactory.ParseTypeName(genericType))
+                            .WithVariables(SyntaxFactory.SingletonSeparatedList(SyntaxFactory.VariableDeclarator(eventName))))
+                    .WithModifiers(modifiers);
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -118,21 +137,39 @@ namespace UTools.SourceGenerators
         /// </summary>
         /// <param name="fieldType">The type of the property.</param>
         /// <param name="propertyName">The name of the property.</param>
+        /// <param name="getterVisibility"></param>
+        /// <param name="setterVisibility"></param>
         /// <returns>A PropertyDeclarationSyntax representing the created property.</returns>
-        public static PropertyDeclarationSyntax CreateInterfaceProperty(TypeSyntax fieldType, string propertyName)
+        public static PropertyDeclarationSyntax CreateInterfaceProperty(TypeSyntax fieldType, string propertyName, Visibility getterVisibility, Visibility setterVisibility)
         {
-            var modifiers = SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword));
-            var getAccessor = SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
-                .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
+            if (getterVisibility == Visibility.Public || setterVisibility == Visibility.Public)
+            {
+                var propertyModifiers = SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword));
+                List<AccessorDeclarationSyntax> accessors = new();
+                if (getterVisibility == Visibility.Public)
+                {
+                    var getAccessor = SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
+                        .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
+                    accessors.Add(getAccessor);
+                }
+                
+                if (setterVisibility == Visibility.Public)
+                {
+                    var setAccessor = SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration)
+                        .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
+                    accessors.Add(setAccessor);
+                }
 
-            var setAccessor = SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration)
-                .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
+                var propertyDeclaration = SyntaxFactory.PropertyDeclaration(fieldType, propertyName)
+                    .WithModifiers(propertyModifiers)
+                    .WithAccessorList(SyntaxFactory.AccessorList(SyntaxFactory.List(accessors)));
 
-            var propertyDeclaration = SyntaxFactory.PropertyDeclaration(fieldType, propertyName)
-                .WithModifiers(modifiers)
-                .WithAccessorList(SyntaxFactory.AccessorList(SyntaxFactory.List(new[] { getAccessor, setAccessor })));
+                return propertyDeclaration;
+            }
 
-            return propertyDeclaration;
+            return null;
+
+
         }
     }
 }
