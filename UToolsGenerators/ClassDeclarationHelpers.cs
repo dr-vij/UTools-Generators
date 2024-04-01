@@ -105,53 +105,5 @@ namespace UTools.SourceGenerators
                     Usings: classNode.GetUsing()
                 ));
         }
-
-        /// <summary>
-        ///  Get all fields of a class that are constants and have a specific attribute
-        /// </summary>
-        /// <param name="classDeclaration"></param>
-        /// <param name="attribute"></param>
-        /// <param name="type"></param>
-        /// <returns></returns>
-        public static IEnumerable<FieldDeclarationSyntax> GetConstantsOfTypeByAttribute(
-            this ClassDeclarationSyntax classDeclaration,
-            string attribute,
-            string type)
-        {
-            return classDeclaration.Members.OfType<FieldDeclarationSyntax>().Where(
-                fieldDeclaration =>
-                {
-                    var hasAttr = fieldDeclaration.HasAttribute(attribute);
-                    var isConst = fieldDeclaration.Modifiers.Any(SyntaxKind.ConstKeyword);
-                    var isStringType = fieldDeclaration.Declaration.Type.ToString() == type;
-                    return hasAttr && isConst && isStringType;
-                }
-            );
-        }
-
-        /// <summary>
-        ///  Get all classes that have a specific attribute on a field
-        /// </summary>
-        /// <param name="compilation"></param>
-        /// <param name="attributes"></param>
-        /// <returns></returns>
-        public static IEnumerable<ClassDeclarationSyntax> GetClassesByFieldAttributes(this Compilation compilation, params string[] attributes)
-        {
-            return compilation.GetNodesOfType<ClassDeclarationSyntax>()
-                .Where(classDec => classDec.Members.OfType<FieldDeclarationSyntax>()
-                    .Any(field => attributes.Any(field.HasAttribute)));
-        }
-
-        /// <summary>
-        ///  Get all classes that have a specific attribute
-        /// </summary>
-        /// <param name="compilation"></param>
-        /// <param name="attributes"></param>
-        /// <returns></returns>
-        public static IEnumerable<ClassDeclarationSyntax> GetClassesByAttributes(this Compilation compilation, params string[] attributes)
-        {
-            return compilation.GetNodesOfType<ClassDeclarationSyntax>()
-                .Where(classDec => attributes.Any(classDec.HasAttribute));
-        }
     }
 }

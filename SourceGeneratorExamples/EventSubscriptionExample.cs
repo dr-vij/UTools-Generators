@@ -8,7 +8,7 @@ namespace ExampleNamespace.NameSpace
 
     public partial class EventSubscriptionExample
     {
-        [EventSubscription(OutputInterface = typeof(IEventInterface))]
+        [EventSubscription(typeof(IEventInterface))]
         private bool m_TestFieldEvent;
     }
 }

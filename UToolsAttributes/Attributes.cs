@@ -10,7 +10,7 @@ namespace UTools.SourceGeneratorAttributes
     /// </summary>
     public interface IOutputInterfaceAttrParameter
     {
-        public Type? OutputInterface { get; set; }
+        public Type[]? OutputInterfaces { get; set; }
     }
 
     /// <summary>
@@ -36,7 +36,12 @@ namespace UTools.SourceGeneratorAttributes
     [AttributeUsage(validOn: AttributeTargets.Field)]
     public class DisposableSubscriptionAttribute : Attribute, IOutputInterfaceAttrParameter
     {
-        public Type? OutputInterface { get; set; } = null;
+        public DisposableSubscriptionAttribute(params Type[] outputInterfaces)
+        {
+            OutputInterfaces = outputInterfaces;
+        }
+
+        public Type[]? OutputInterfaces { get; set; }
     }
 
     /// <summary>
@@ -46,7 +51,12 @@ namespace UTools.SourceGeneratorAttributes
     [AttributeUsage(AttributeTargets.Field)]
     public class EventSubscriptionAttribute : Attribute, IOutputInterfaceAttrParameter
     {
-        public Type? OutputInterface { get; set; } = null;
+        public EventSubscriptionAttribute(params Type[] outputInterfaces)
+        {
+            OutputInterfaces = outputInterfaces;
+        }
+
+        public Type[]? OutputInterfaces { get; set; }
     }
 
     #endregion
