@@ -56,7 +56,19 @@ namespace UTools.SourceGenerators
             return compilation.GetNodesOfType<ClassDeclarationSyntax>()
                 .Where(classDec => attributes.Any(classDec.HasAttribute));
         }
-
+        
+        /// <summary>
+        /// Tries to get the type symbols from the attribute interface property of a field node.
+        /// </summary>
+        /// <param name="compilation">The compilation that contains the field node.</param>
+        /// <param name="fieldNode">The field node to get the attribute interface property from.</param>
+        /// <param name="attributeName">The name of the attribute to look for.</param>
+        /// <param name="results">The list of type symbols found in the attribute interface property. This is an output parameter.</param>
+        /// <returns>Returns true if one or more type symbols were found, otherwise false.</returns>
+        /// <remarks>
+        /// This method looks for an attribute with the specified name on the field node. If found, it retrieves the type symbols from the attribute interface property.
+        /// The type symbols are added to the 'results' list. If no type symbols are found, the 'results' list is empty.
+        /// </remarks>
         public static bool TryGetTypeFromAttributeInterfaceProperty(
             this Compilation compilation,
             FieldDeclarationSyntax fieldNode,
