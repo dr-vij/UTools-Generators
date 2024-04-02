@@ -20,16 +20,15 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\UToolsAttributes\UToolsAttributes.csproj" PrivateAssets="all"/>
+        <ProjectReference Include="..\UToolsAttributes\UToolsAttributes.csproj" Version="1.0.0" PrivateAssets="all" GeneratePathProperty="true"  OutputItemType="Analyzer"/>
     </ItemGroup>
 
     <PropertyGroup>
         <GetTargetPathDependsOn>$(GetTargetPathDependsOn);GetDependencyTargetPaths</GetTargetPathDependsOn>
     </PropertyGroup>
-
-    <Target Name="GetDependencyTargetPaths">
+    <Target Name="GetDependencyTargetPaths" AfterTargets="ResolvePackageDependenciesForBuild">
         <ItemGroup>
-            <TargetPathWithTargetPlatformMoniker Include="$(OutputPath)UToolsAttributes.dll" IncludeRuntimeDependency="false" />
+            <TargetPathWithTargetPlatformMoniker Include="@(ResolvedCompileFileDefinitions)" IncludeRuntimeDependency="false" />
         </ItemGroup>
     </Target>
 </Project>

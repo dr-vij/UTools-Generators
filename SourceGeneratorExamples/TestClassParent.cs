@@ -10,6 +10,6 @@ namespace ExampleNamespace.NameSpace
     public partial class CombinedSubscriptionsExample
     {
         [PropertySubscription]
-        private static bool m_TwoSubscriptionsField;
+        private bool m_TwoSubscriptionsField;
     }
 }
