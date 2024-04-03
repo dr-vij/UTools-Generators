@@ -32,7 +32,7 @@ namespace UTools.SourceGeneratorAttributes
     public class PropertySubscription : Attribute
     {
         public SubscriptionType SubscriptionType { get; set; } = SubscriptionType.Disposable;
-        public Type[]? OutputInterfaces { get; set; }
+        public Type[] OutputInterfaces { get; set; }
 
         public Visibility SetterVisibility { get; set; }
 

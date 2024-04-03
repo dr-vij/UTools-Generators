@@ -5,6 +5,7 @@
         <AssemblyName>UToolsGenerators</AssemblyName>
         <RootNamespace>UToolsGenerators</RootNamespace>
         <LangVersion>9</LangVersion>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
@@ -20,15 +21,23 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\UToolsAttributes\UToolsAttributes.csproj" Version="1.0.0" PrivateAssets="all" GeneratePathProperty="true"  OutputItemType="Analyzer"/>
+<!--        PrivateAssets="all"-->
+      <ProjectReference Include="..\UToolsAttributes\UToolsAttributes.csproj" GeneratePathProperty="true" OutputItemType="Analyzer"/>
     </ItemGroup>
 
     <PropertyGroup>
         <GetTargetPathDependsOn>$(GetTargetPathDependsOn);GetDependencyTargetPaths</GetTargetPathDependsOn>
     </PropertyGroup>
+
     <Target Name="GetDependencyTargetPaths" AfterTargets="ResolvePackageDependenciesForBuild">
         <ItemGroup>
-            <TargetPathWithTargetPlatformMoniker Include="@(ResolvedCompileFileDefinitions)" IncludeRuntimeDependency="false" />
+            <TargetPathWithTargetPlatformMoniker Include="@(ResolvedCompileFileDefinitions)" IncludeRuntimeDependency="true" />
+        </ItemGroup>
+    </Target>
+
+    <Target Name="AddGenerationTimeReferences" AfterTargets="ResolvePackageDependenciesForBuild">
+        <ItemGroup>
+            <None Include="@(ResolvedCompileFileDefinitions)" Pack="false" PackagePath="analyzers/dotnet/cs"/>
         </ItemGroup>
     </Target>
 </Project>
