@@ -25,18 +25,17 @@ namespace UTools.SourceGenerators
             SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System.Collections.Generic")),
             SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("UnityEngine")),
         };
-
         
-        public static readonly DiagnosticDescriptor FailedToParseMessage = new DiagnosticDescriptor(
-            "SAMPLE001",
-            "Message title",
-            "Failed to parse message type '{0}'",
-            "Parser", DiagnosticSeverity.Error, true);
+        // TODO: Implement custom errors.
+        // public static readonly DiagnosticDescriptor FailedToParseMessage = new DiagnosticDescriptor(
+        //     "SAMPLE001",
+        //     "Message title",
+        //     "Failed to parse message type '{0}'",
+        //     "Parser", DiagnosticSeverity.Error, true);
+        
         public void Execute(GeneratorExecutionContext context)
         {
-            // context.ReportDiagnostic(Diagnostic.Create(FailedToParseMessage, Location.None, "ShaderProvider"));
-            
-            //find classes with ShaderPropertiesProvider attribute
+            // context.ReportDiagnostic(Diagnostic.Create(FailedToParseMessage, Location.None, "Sample message type"));
             var classes = context.Compilation.GetClassesByAttributes(ShaderPropertiesProviderAttribute);
             
             m_Members.Clear();

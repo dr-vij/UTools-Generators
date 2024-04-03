@@ -26,18 +26,8 @@ namespace UTools.SourceGenerators
 
         public void Initialize(GeneratorInitializationContext context) { }
 
-        public static readonly DiagnosticDescriptor FailedToParseMessage = new DiagnosticDescriptor(
-            "SAMPLE001",
-            "Message title",
-            "Failed to parse message type '{0}'",
-            "Parser", DiagnosticSeverity.Error, true);
-
         public void Execute(GeneratorExecutionContext context)
         {
-            // string result = "FieldGenerator";
-            // result = Visibility.Internal.ToString();
-            // context.ReportDiagnostic(Diagnostic.Create(FailedToParseMessage, Location.None, result));
-
             var compilation = context.Compilation;
             var subscriptionAttribute = nameof(PropertySubscription);
             

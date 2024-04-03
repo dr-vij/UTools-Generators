@@ -21,8 +21,10 @@
     </ItemGroup>
 
     <ItemGroup>
-        <!--        PrivateAssets="all"-->
-        <ProjectReference Include="..\UToolsAttributes\UToolsAttributes.csproj" GeneratePathProperty="true" OutputItemType="Analyzer"/>
+        <ProjectReference
+                Include="..\UToolsAttributes\UToolsAttributes.csproj"
+                GeneratePathProperty="true"
+                OutputItemType="Analyzer"/>
     </ItemGroup>
 
     <PropertyGroup>
