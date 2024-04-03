@@ -34,7 +34,7 @@ namespace UTools.SourceGenerators
             "Parser", DiagnosticSeverity.Error, true);
         public void Execute(GeneratorExecutionContext context)
         {
-            context.ReportDiagnostic(Diagnostic.Create(FailedToParseMessage, Location.None, "ShaderProvider"));
+            // context.ReportDiagnostic(Diagnostic.Create(FailedToParseMessage, Location.None, "ShaderProvider"));
             
             //find classes with ShaderPropertiesProvider attribute
             var classes = context.Compilation.GetClassesByAttributes(ShaderPropertiesProviderAttribute);

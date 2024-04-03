@@ -34,9 +34,9 @@ namespace UTools.SourceGenerators
 
         public void Execute(GeneratorExecutionContext context)
         {
-            string result = "FieldGenerator";
-            result = Visibility.Internal.ToString();
-            context.ReportDiagnostic(Diagnostic.Create(FailedToParseMessage, Location.None, result));
+            // string result = "FieldGenerator";
+            // result = Visibility.Internal.ToString();
+            // context.ReportDiagnostic(Diagnostic.Create(FailedToParseMessage, Location.None, result));
 
             var compilation = context.Compilation;
             var subscriptionAttribute = nameof(PropertySubscription);
