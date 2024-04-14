@@ -24,44 +24,47 @@ namespace UTools.SourceGenerators
 
         private readonly Dictionary<string, InterfaceBuilder> m_InterfaceBuilders = new();
 
-        public void Initialize(GeneratorInitializationContext context) { }
+        public void Initialize(GeneratorInitializationContext context)
+        {
+        }
 
         public void Execute(GeneratorExecutionContext context)
         {
             var compilation = context.Compilation;
             var subscriptionAttribute = nameof(PropertySubscription);
-            
+
             var fieldAttributes = new[] { subscriptionAttribute };
-            
+
             var classNodes = compilation.GetClassesByFieldAttributes(fieldAttributes);
             var counter = 0;
-            
+
             foreach (var classNode in classNodes)
             {
                 m_InterfaceBuilders.Clear();
-            
+
                 var className = classNode.Identifier.Text;
                 var fieldNodes = classNode.Members
                     .OfType<FieldDeclarationSyntax>()
                     .Where(fieldNode => fieldAttributes.Any(fieldNode.HasAttribute));
-            
+
                 var newClass = classNode.WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>())
                     .WithoutTrivia()
                     .WithAttributeLists(SyntaxFactory.List<AttributeListSyntax>())
                     .WithBaseList(null);
-            
+
                 foreach (var fieldNode in fieldNodes)
                 {
                     var isStatic = fieldNode.Modifiers.Any(SyntaxKind.StaticKeyword);
                     var fieldType = fieldNode.Declaration.Type;
-            
+
                     var fieldName = fieldNode.Declaration.Variables.First().Identifier.Text;
                     var privateEventName = $"{fieldName}Changed";
                     var propertyName = fieldName.RemovePrefix();
                     var subscriptionEventName = $"{propertyName}Changed";
                     var subscriptionMethodName = $"SubscribeTo{propertyName}";
                     var partialMethodName = $"On{propertyName}Change";
-            
+                    var partialBeforeMethodName = $"Before{propertyName}Change";
+
                     //PREPARE GETTER AND SETTERS VISIBILITY
                     var setterVisibilityFound = fieldNode.TryGetAttributeParameter(
                         compilation,
@@ -72,36 +75,40 @@ namespace UTools.SourceGenerators
                         compilation, subscriptionAttribute,
                         nameof(PropertySubscription.GetterVisibility),
                         out var getterVisibilityExp);
-            
+
                     var setterVisibility = Visibility.Public;
                     if (setterVisibilityFound)
                         setterVisibility = (Visibility)Enum.Parse(typeof(Visibility), setterVisibilityExp.ToString().GetLastWord());
-            
+
                     var getterVisibility = Visibility.Public;
                     if (getterVisibilityFound)
                         getterVisibility = (Visibility)Enum.Parse(typeof(Visibility), getterVisibilityExp.ToString().GetLastWord());
-            
+
                     var eventField = CreateEventField(fieldType, privateEventName, isStatic);
-                   
+
                     var propertyDeclaration = CreatePropertyAndCallbacks(
                         fieldType,
                         propertyName,
                         fieldName,
+                        partialBeforeMethodName,
                         partialMethodName,
                         privateEventName,
                         isStatic,
                         getterVisibility,
                         setterVisibility
                     );
-                    var partialMethod = CreatePartialMethod(partialMethodName, fieldType, isStatic);
-            
+
+                    var partialBeforeMethod = CreatePartialMethod(partialBeforeMethodName, fieldType, isStatic, true);
+                    var partialMethod = CreatePartialMethod(partialMethodName, fieldType, isStatic, false);
+
                     m_Members.Clear();
+                    m_Members.Add(partialBeforeMethod);
                     m_Members.Add(partialMethod);
                     m_Members.Add(eventField);
                     m_Members.Add(propertyDeclaration);
-            
+
                     var hasDisposableSubscription = fieldNode.HasAttribute(subscriptionAttribute);
-            
+
                     if (hasDisposableSubscription)
                     {
                         var selectedSubscriptionType = SubscriptionType.Disposable;
@@ -112,11 +119,11 @@ namespace UTools.SourceGenerators
                             out var subscriptionTypeExp);
                         if (subscriptionTypeFound)
                             selectedSubscriptionType = (SubscriptionType)Enum.Parse(typeof(SubscriptionType), subscriptionTypeExp.ToString().GetLastWord());
-            
+
                         //We try to find interface from attribute, and property visibility
                         compilation.TryGetTypeFromAttributeInterfaceProperty(fieldNode, subscriptionAttribute, out var interfaceTypes);
-            
-            
+
+
                         //Prepare the interfaces and their subscriptions
                         foreach (var interfaceType in interfaceTypes)
                         {
@@ -126,7 +133,7 @@ namespace UTools.SourceGenerators
                                 interfaceBuilder = new InterfaceBuilder(key, interfaceType);
                                 m_InterfaceBuilders.Add(key, interfaceBuilder);
                             }
-            
+
                             interfaceBuilder.AddInterfaceProperty(fieldType, propertyName, getterVisibility, setterVisibility);
                             switch (selectedSubscriptionType)
                             {
@@ -138,7 +145,7 @@ namespace UTools.SourceGenerators
                                     break;
                             }
                         }
-            
+
                         //Create subscription, depending on the attribute type
                         MemberDeclarationSyntax subscription = null;
                         switch (selectedSubscriptionType)
@@ -150,32 +157,32 @@ namespace UTools.SourceGenerators
                                 subscription = CreateSubscriptionEvent(fieldType, subscriptionEventName, fieldName, privateEventName, isStatic, getterVisibility);
                                 break;
                         }
-            
+
                         if (subscription != null)
                             m_Members.Add(subscription);
                     }
-            
+
                     newClass = newClass.AddMembers(m_Members.ToArray());
                 }
-            
+
                 var combinedUsing = classNode
                     .GetUsingArr()
                     .Concat(m_ExtraUsing)
                     .MakeDistinct()
                     .ToArray();
-            
+
                 var compilationUnit = SyntaxFactory.CompilationUnit()
                     .AddUsings(combinedUsing);
-            
+
                 var interfaces = m_InterfaceBuilders.Values.Select(builder => builder.ToSyntaxNode()).ToArray();
                 foreach (var interfaceBuilder in m_InterfaceBuilders.Values)
                     newClass = newClass.AddBaseListTypes(interfaceBuilder.ToSimpleBaseTypeSyntax());
-            
+
                 var classWithHierarchy = classNode.CopyHierarchyTo(newClass);
                 compilationUnit = compilationUnit
                     .AddMembers(interfaces)
                     .AddMembers(classWithHierarchy);
-            
+
                 var code = compilationUnit
                     .NormalizeWhitespace()
                     .ToFullString();
@@ -356,25 +363,29 @@ namespace UTools.SourceGenerators
         /// <param name="methodName">the name of generated method</param>
         /// <param name="parameterType">type of generated method parameter</param>
         /// <param name="isStatic">makes method declaration static when true</param>
+        /// <param name="isRefInput">adds ref keyword to the callback parameter</param>
         /// <returns></returns>
         private static MethodDeclarationSyntax CreatePartialMethod(string methodName, TypeSyntax parameterType,
-            bool isStatic)
+            bool isStatic, bool isRefInput)
         {
             var modifiers = isStatic
                 ? SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.StaticKeyword),
                     SyntaxFactory.Token(SyntaxKind.PartialKeyword))
                 : SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PartialKeyword));
+
+            var parameter = SyntaxFactory.Parameter(SyntaxFactory.Identifier("newValue"))
+                .WithType(parameterType);
+
+            if (isRefInput)
+                parameter = parameter.WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.RefKeyword)));
+
             return SyntaxFactory
                 .MethodDeclaration(SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.VoidKeyword)),
                     methodName)
                 .WithModifiers(modifiers)
-                .WithParameterList(
-                    SyntaxFactory.ParameterList(
-                        SyntaxFactory.SingletonSeparatedList(SyntaxFactory
-                            .Parameter(SyntaxFactory.Identifier("newValue")).WithType(parameterType))))
+                .WithParameterList(SyntaxFactory.ParameterList(SyntaxFactory.SingletonSeparatedList(parameter)))
                 .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
         }
-
 
         /// <summary>
         /// Create the property declaration with given field name and type.
@@ -393,6 +404,7 @@ namespace UTools.SourceGenerators
             TypeSyntax fieldType,
             string propertyName,
             string fieldName,
+            string partialBeforeMethodName,
             string methodCallbackName,
             string eventCallbackName,
             bool isStatic,
@@ -411,6 +423,7 @@ namespace UTools.SourceGenerators
             var eventInvocation = isStatic
                 ? $"{eventCallbackName}?.Invoke(value);"
                 : $"{eventCallbackName}?.Invoke(this, value)";
+            var eventInvocationExpression = SyntaxFactory.ParseExpression(eventInvocation);
 
             var getAccessor = SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration).WithBody(
                 SyntaxFactory.Block(SyntaxFactory.SingletonList<StatementSyntax>(
@@ -422,22 +435,34 @@ namespace UTools.SourceGenerators
             var notEqualsExpressionCode = $"!EqualityComparer<{fieldType}>.Default.Equals({fieldName}, value)";
             var notEqualsExpression = SyntaxFactory.ParseExpression(notEqualsExpressionCode);
 
+            //partial method invocation before the field assignment, with ref keyword
+            var partialBeforeMethodInvocation = SyntaxFactory.InvocationExpression(
+                SyntaxFactory.IdentifierName(partialBeforeMethodName),
+                SyntaxFactory.ArgumentList(
+                    SyntaxFactory.SingletonSeparatedList(
+                        SyntaxFactory.Argument(SyntaxFactory.IdentifierName("value")).WithRefKindKeyword(SyntaxFactory.Token(SyntaxKind.RefKeyword)))));
+
+            //partial method invocation after the field assignment
+            var partialMethodInvocation = SyntaxFactory.InvocationExpression(
+                SyntaxFactory.IdentifierName(methodCallbackName),
+                SyntaxFactory.ArgumentList(
+                    SyntaxFactory.SingletonSeparatedList(
+                        SyntaxFactory.Argument(SyntaxFactory.IdentifierName("value")))));
+
+            var assignment = SyntaxFactory.AssignmentExpression(
+                SyntaxKind.SimpleAssignmentExpression,
+                SyntaxFactory.IdentifierName(fieldName),
+                SyntaxFactory.IdentifierName("value"));
+
             var setAccessor = SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration).WithBody(
                 SyntaxFactory.Block(
-                    SyntaxFactory.IfStatement(notEqualsExpression, SyntaxFactory.Block(
-                            SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(
-                                SyntaxKind.SimpleAssignmentExpression,
-                                SyntaxFactory.IdentifierName(fieldName), SyntaxFactory.IdentifierName("value"))),
-                            SyntaxFactory.ExpressionStatement(SyntaxFactory.ParseExpression(eventInvocation)),
-                            SyntaxFactory.ExpressionStatement(SyntaxFactory.InvocationExpression(
-                                SyntaxFactory.IdentifierName(methodCallbackName),
-                                SyntaxFactory.ArgumentList(
-                                    SyntaxFactory.SingletonSeparatedList(
-                                        SyntaxFactory.Argument(SyntaxFactory.IdentifierName("value"))))))
-                        )
-                    )
-                )
-            );
+                    SyntaxFactory.ExpressionStatement(partialBeforeMethodInvocation),
+                    SyntaxFactory.IfStatement(notEqualsExpression,
+                        SyntaxFactory.Block(
+                            SyntaxFactory.ExpressionStatement(assignment),
+                            SyntaxFactory.ExpressionStatement(partialMethodInvocation),
+                            SyntaxFactory.ExpressionStatement(eventInvocationExpression)
+                        ))));
 
             setAccessor = needSetterRestriction
                 ? setAccessor.WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(setterVisibility.ToVisibilitySyntaxKind())))
