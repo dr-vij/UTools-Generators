@@ -18,4 +18,11 @@ namespace UnityEngine
         {
         }
     }
+
+    public class LayerMask
+    {
+        public static int NameToLayer(string name) => 0;
+
+        public static int GetMask(string name) => 0;
+    }
 }

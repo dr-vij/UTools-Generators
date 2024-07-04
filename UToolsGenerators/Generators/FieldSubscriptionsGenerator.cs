@@ -123,7 +123,6 @@ namespace UTools.SourceGenerators
                         //We try to find interface from attribute, and property visibility
                         compilation.TryGetTypeFromAttributeInterfaceProperty(fieldNode, subscriptionAttribute, out var interfaceTypes);
 
-
                         //Prepare the interfaces and their subscriptions
                         foreach (var interfaceType in interfaceTypes)
                         {
@@ -189,7 +188,6 @@ namespace UTools.SourceGenerators
                 context.AddSource(className + $"Gen{counter++}.cs", SourceText.From(code, Encoding.UTF8));
             }
         }
-
 
         /// <summary>
         /// Create the disposable subscription method for the given event name and field name

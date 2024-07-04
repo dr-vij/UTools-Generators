@@ -99,4 +99,11 @@ namespace UTools.SourceGeneratorAttributes
     public class ShaderPropertyAttribute : Attribute { }
 
     #endregion
+
+    #region LayerInfo Source Generator attributes
+
+    [AttributeUsage(AttributeTargets.Field)]
+    public class ExportLayerInfo : Attribute { }
+
+    #endregion
 }
