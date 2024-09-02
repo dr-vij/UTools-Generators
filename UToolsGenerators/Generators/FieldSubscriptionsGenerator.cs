@@ -47,10 +47,14 @@ namespace UTools.SourceGenerators
                     .OfType<FieldDeclarationSyntax>()
                     .Where(fieldNode => fieldAttributes.Any(fieldNode.HasAttribute));
 
-                var newClass = classNode.WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>())
-                    .WithoutTrivia()
-                    .WithAttributeLists(SyntaxFactory.List<AttributeListSyntax>())
-                    .WithBaseList(null);
+                var newClass = SyntaxFactory.ClassDeclaration(
+                    default,
+                    classNode.Modifiers,
+                    classNode.Identifier,
+                    classNode.TypeParameterList,
+                    null,
+                    classNode.ConstraintClauses,
+                    SyntaxFactory.List<MemberDeclarationSyntax>());
 
                 foreach (var fieldNode in fieldNodes)
                 {
