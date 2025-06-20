@@ -83,11 +83,11 @@ namespace UTools.SourceGenerators
         }
 
         /// <summary>
-        /// Creates a method declaration for an interface that allows subscribing to an event.
+        /// Creates a method declaration for an interface that allows subscribing to an event with optional initial call parameter.
         /// </summary>
         /// <param name="fieldType">The type of the event's data.</param>
         /// <param name="methodName">The name of the method to be created.</param>
-        /// <param name="methodVisibility"></param>
+        /// <param name="methodVisibility">The visibility of the method.</param>
         /// <returns>A MethodDeclarationSyntax object representing the created method.</returns>
         public static MethodDeclarationSyntax CreateInterfaceSubscriptionMethod(TypeSyntax fieldType, string methodName, Visibility methodVisibility)
         {
@@ -98,11 +98,23 @@ namespace UTools.SourceGenerators
                 var returnType = SyntaxFactory.IdentifierName("IDisposable");
                 var parameterType = SyntaxFactory.GenericName(SyntaxFactory.Identifier("EventHandler"))
                     .WithTypeArgumentList(SyntaxFactory.TypeArgumentList(SyntaxFactory.SingletonSeparatedList(fieldType)));
-                var parameter = SyntaxFactory.Parameter(SyntaxFactory.Identifier("handler")).WithType(parameterType);
+                
+                // Create first parameter - handler
+                var handlerParameter = SyntaxFactory.Parameter(SyntaxFactory.Identifier("handler")).WithType(parameterType);
+
+                // Create second parameter - initialCall with default value true
+                var initialCallParameter = SyntaxFactory.Parameter(SyntaxFactory.Identifier("initialCall"))
+                    .WithType(SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.BoolKeyword)))
+                    .WithDefault(SyntaxFactory.EqualsValueClause(
+                        SyntaxFactory.LiteralExpression(SyntaxKind.TrueLiteralExpression)));
+
+                // Create parameter list with both parameters
+                var parameters = SyntaxFactory.ParameterList(
+                    SyntaxFactory.SeparatedList(new[] { handlerParameter, initialCallParameter }));
 
                 var methodDeclaration = SyntaxFactory.MethodDeclaration(returnType, methodName)
                     .WithModifiers(modifiers)
-                    .WithParameterList(SyntaxFactory.ParameterList(SyntaxFactory.SingletonSeparatedList(parameter)))
+                    .WithParameterList(parameters)
                     .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
 
                 return methodDeclaration;
@@ -115,7 +127,7 @@ namespace UTools.SourceGenerators
         /// </summary>
         /// <param name="fieldType">The type of the event's data.</param>
         /// <param name="eventName">The name of the event to be created.</param>
-        /// <param name="eventVisibility"></param>
+        /// <param name="eventVisibility">The visibility of the event.</param>
         /// <returns>An EventFieldDeclarationSyntax object representing the created event field.</returns>
         public static EventFieldDeclarationSyntax CreateInterfaceSubscriptionEvent(TypeSyntax fieldType, string eventName, Visibility eventVisibility)
         {
@@ -137,8 +149,8 @@ namespace UTools.SourceGenerators
         /// </summary>
         /// <param name="fieldType">The type of the property.</param>
         /// <param name="propertyName">The name of the property.</param>
-        /// <param name="getterVisibility"></param>
-        /// <param name="setterVisibility"></param>
+        /// <param name="getterVisibility">The visibility of the getter.</param>
+        /// <param name="setterVisibility">The visibility of the setter.</param>
         /// <returns>A PropertyDeclarationSyntax representing the created property.</returns>
         public static PropertyDeclarationSyntax CreateInterfaceProperty(TypeSyntax fieldType, string propertyName, Visibility getterVisibility, Visibility setterVisibility)
         {
@@ -168,8 +180,6 @@ namespace UTools.SourceGenerators
             }
 
             return null;
-
-
         }
     }
 }

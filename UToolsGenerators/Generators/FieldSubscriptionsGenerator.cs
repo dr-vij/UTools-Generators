@@ -193,16 +193,6 @@ namespace UTools.SourceGenerators
             }
         }
 
-        /// <summary>
-        /// Create the disposable subscription method for the given event name and field name
-        /// </summary>
-        /// <param name="fieldType"></param>
-        /// <param name="subscriptionMethodName"></param>
-        /// <param name="fieldName"></param>
-        /// <param name="eventName"></param>
-        /// <param name="isStatic"></param>
-        /// <param name="visibility"></param>
-        /// <returns></returns>
         private static MethodDeclarationSyntax CreateDisposableSubscriptionMethod(
             TypeSyntax fieldType,
             string subscriptionMethodName,
@@ -218,14 +208,26 @@ namespace UTools.SourceGenerators
                 ? SyntaxFactory.TokenList(SyntaxFactory.Token(visibilityToken),
                     SyntaxFactory.Token(SyntaxKind.StaticKeyword))
                 : SyntaxFactory.TokenList(SyntaxFactory.Token(visibilityToken));
+
             var eventHandlerTypeName = isStatic ? "Action" : "EventHandler";
             var eventHandlerTypeArgumentList =
                 SyntaxFactory.TypeArgumentList(SyntaxFactory.SingletonSeparatedList(fieldType));
             var eventHandlerType = SyntaxFactory.GenericName(SyntaxFactory.Identifier(eventHandlerTypeName))
                 .WithTypeArgumentList(eventHandlerTypeArgumentList);
 
-            var parameter = SyntaxFactory.Parameter(SyntaxFactory.Identifier("handler"))
+            // Create first parameter - handler
+            var handlerParameter = SyntaxFactory.Parameter(SyntaxFactory.Identifier("handler"))
                 .WithType(eventHandlerType);
+
+            // Create second parameter - initialCall with default value true
+            var initialCallParameter = SyntaxFactory.Parameter(SyntaxFactory.Identifier("initialCall"))
+                .WithType(SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.BoolKeyword)))
+                .WithDefault(SyntaxFactory.EqualsValueClause(
+                    SyntaxFactory.LiteralExpression(SyntaxKind.TrueLiteralExpression)));
+
+            // Create parameter list with both parameters
+            var parameters = SyntaxFactory.ParameterList(
+                SyntaxFactory.SeparatedList(new[] { handlerParameter, initialCallParameter }));
 
             var eventNameExpression = SyntaxFactory.IdentifierName(eventName);
             var addAssignment = SyntaxFactory.AssignmentExpression(SyntaxKind.AddAssignmentExpression,
@@ -248,13 +250,17 @@ namespace UTools.SourceGenerators
                     )
                 );
 
-            var handlerInvokeStatement = SyntaxFactory.ExpressionStatement(
-                SyntaxFactory.ConditionalAccessExpression(
-                    SyntaxFactory.IdentifierName("handler"),
-                    SyntaxFactory
-                        .InvocationExpression(
-                            SyntaxFactory.MemberBindingExpression(SyntaxFactory.IdentifierName("Invoke")))
-                        .WithArgumentList(handlerInvokeArguments)));
+            // Create conditional handler invocation - only if initialCall is true
+            var handlerInvokeExpression = SyntaxFactory.ConditionalAccessExpression(
+                SyntaxFactory.IdentifierName("handler"),
+                SyntaxFactory
+                    .InvocationExpression(
+                        SyntaxFactory.MemberBindingExpression(SyntaxFactory.IdentifierName("Invoke")))
+                    .WithArgumentList(handlerInvokeArguments));
+
+            var conditionalHandlerInvokeStatement = SyntaxFactory.IfStatement(
+                SyntaxFactory.IdentifierName("initialCall"),
+                SyntaxFactory.ExpressionStatement(handlerInvokeExpression));
 
             var returnStatement = SyntaxFactory.ReturnStatement(
                 SyntaxFactory.ObjectCreationExpression(SyntaxFactory.IdentifierName("DisposeAction"))
@@ -262,14 +268,16 @@ namespace UTools.SourceGenerators
                         SyntaxFactory.Argument(
                             SyntaxFactory.ParenthesizedLambdaExpression(removeAssignment))))));
 
-            var methodBody = SyntaxFactory.Block(SyntaxFactory.ExpressionStatement(addAssignment),
-                handlerInvokeStatement,
+            // Create method body with subscription, conditional invocation, and return statement
+            var methodBody = SyntaxFactory.Block(
+                SyntaxFactory.ExpressionStatement(addAssignment),
+                conditionalHandlerInvokeStatement,
                 returnStatement);
 
             var methodDeclaration = SyntaxFactory.MethodDeclaration(SyntaxFactory.IdentifierName("IDisposable"),
                     SyntaxFactory.Identifier(subscriptionMethodName))
                 .WithModifiers(modifiers)
-                .WithParameterList(SyntaxFactory.ParameterList(SyntaxFactory.SingletonSeparatedList(parameter)))
+                .WithParameterList(parameters)
                 .WithBody(methodBody);
 
             return methodDeclaration;
