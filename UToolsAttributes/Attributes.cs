@@ -10,18 +10,6 @@ namespace UTools.SourceGeneratorAttributes
         Private = 3,
     }
 
-    public enum AccessorType
-    {
-        Get = 0,
-        Set = 1
-    }
-
-    public enum SubscriptionType
-    {
-        Disposable = 0,
-        Event = 1
-    }
-
     #region Subscription Source Generator attributes
 
     /// <summary>
@@ -31,7 +19,6 @@ namespace UTools.SourceGeneratorAttributes
     [AttributeUsage(validOn: AttributeTargets.Field)]
     public class PropertySubscription : Attribute
     {
-        public SubscriptionType SubscriptionType { get; set; } = SubscriptionType.Disposable;
         public Type[] OutputInterfaces { get; set; }
 
         public Visibility SetterVisibility { get; set; }
@@ -40,17 +27,6 @@ namespace UTools.SourceGeneratorAttributes
 
         public PropertySubscription() { }
 
-        public PropertySubscription(
-            SubscriptionType subscriptionType = SubscriptionType.Disposable,
-            Visibility getterVisibility = Visibility.Public,
-            Visibility setterVisibility = Visibility.Public,
-            params Type[] outputInterfaces)
-        {
-            SubscriptionType = subscriptionType;
-            GetterVisibility = getterVisibility;
-            SetterVisibility = setterVisibility;
-            OutputInterfaces = outputInterfaces;
-        }
 
         public PropertySubscription(
             Visibility getterVisibility = Visibility.Public,
@@ -62,13 +38,6 @@ namespace UTools.SourceGeneratorAttributes
             OutputInterfaces = outputInterfaces;
         }
 
-        public PropertySubscription(
-            SubscriptionType subscriptionType = SubscriptionType.Disposable,
-            params Type[] outputInterfaces)
-        {
-            SubscriptionType = subscriptionType;
-            OutputInterfaces = outputInterfaces;
-        }
 
         public PropertySubscription(params Type[] outputInterfaces)
         {

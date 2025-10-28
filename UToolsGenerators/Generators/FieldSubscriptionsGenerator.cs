@@ -115,19 +115,10 @@ namespace UTools.SourceGenerators
 
                     if (hasDisposableSubscription)
                     {
-                        var selectedSubscriptionType = SubscriptionType.Disposable;
-                        var subscriptionTypeFound = fieldNode.TryGetAttributeParameter(
-                            compilation,
-                            subscriptionAttribute,
-                            nameof(PropertySubscription.SubscriptionType),
-                            out var subscriptionTypeExp);
-                        if (subscriptionTypeFound)
-                            selectedSubscriptionType = (SubscriptionType)Enum.Parse(typeof(SubscriptionType), subscriptionTypeExp.ToString().GetLastWord());
-
                         //We try to find interface from attribute, and property visibility
                         compilation.TryGetTypeFromAttributeInterfaceProperty(fieldNode, subscriptionAttribute, out var interfaceTypes);
 
-                        //Prepare the interfaces and their subscriptions
+                        //Prepare the interfaces and their subscriptions (method-based)
                         foreach (var interfaceType in interfaceTypes)
                         {
                             var key = interfaceType.ContainingNamespace + interfaceType.Name;
@@ -138,31 +129,11 @@ namespace UTools.SourceGenerators
                             }
 
                             interfaceBuilder.AddInterfaceProperty(fieldType, propertyName, getterVisibility, setterVisibility);
-                            switch (selectedSubscriptionType)
-                            {
-                                case SubscriptionType.Disposable:
-                                    interfaceBuilder.AddInterfaceSubscriptionMethod(fieldType, subscriptionMethodName, getterVisibility);
-                                    break;
-                                case SubscriptionType.Event:
-                                    interfaceBuilder.AddInterfaceSubscriptionEvent(fieldType, subscriptionEventName, getterVisibility);
-                                    break;
-                            }
+                            interfaceBuilder.AddInterfaceSubscriptionMethod(fieldType, subscriptionMethodName, getterVisibility);
                         }
 
-                        //Create subscription, depending on the attribute type
-                        MemberDeclarationSyntax subscription = null;
-                        switch (selectedSubscriptionType)
-                        {
-                            case SubscriptionType.Disposable:
-                                subscription = CreateDisposableSubscriptionMethod(fieldType, subscriptionMethodName, fieldName, privateEventName, isStatic, getterVisibility);
-                                break;
-                            case SubscriptionType.Event:
-                                subscription = CreateSubscriptionEvent(fieldType, subscriptionEventName, fieldName, privateEventName, isStatic, getterVisibility);
-                                break;
-                        }
-
-                        if (subscription != null)
-                            m_Members.Add(subscription);
+                        var subscription = CreateDisposableSubscriptionMethod(fieldType, subscriptionMethodName, fieldName, privateEventName, isStatic, getterVisibility);
+                        m_Members.Add(subscription);
                     }
 
                     newClass = newClass.AddMembers(m_Members.ToArray());
